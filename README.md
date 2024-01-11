@@ -1,16 +1,15 @@
-# scf_comparison
+# SCF COMPARISON
 
 A brief description of what this project does and who it's for.
 
 ## Description
-This project includes a collection of Python functions and scripts for analyzing atomic structures. It is particularly useful in computational materials science, providing tools for calculating properties like xy areas of periodic cells, extracting total wall times from Quantum ESPRESSO output files, analyzing forces, and computing various statistical measures.
+This project includes a collection of Python functions and scripts for analyzing atomic structures. It is particularly useful in computational materials science, providing tools for calculating properties like extracting total wall times from Quantum ESPRESSO output files, analyzing forces, and computing various statistical measures.
 
 ## Features
-- Calculate xy areas of periodic cells.
-- Extract total wall times from Quantum ESPRESSO output files.
 - Analyze forces, total energy, atomic positions, and atom types.
+- Extract total wall times from Quantum ESPRESSO output files.
 - Compute and visualize Partial Radial Distribution Functions (PRDF).
-- Calculate and plot order parameters, RMSD, MAD, and more.
+- Calculate and plot structural order parameters, RMSD, MAD, and more.
 
 ## Installation
 Clone the repository and install the required dependencies:
@@ -26,7 +25,6 @@ To use the functions provided in this project, import the required modules in yo
 
 \```python
 from analysis_module import compute_prdf, plot_prdf
-# Your code goes here
 \```
 
 Refer to individual function docstrings for more detailed usage instructions.
