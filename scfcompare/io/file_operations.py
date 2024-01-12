@@ -22,7 +22,7 @@ def extract_qe_data(directories, vals):
             # Add atom types using the add_allegro_number_array function
             atom_types = add_allegro_number_array(atoms,eps = 0.5, min_samples=20)
             
-            print(directory, wall_time)
+            # print(directory, wall_time)
             data[directory] = {
                 'directory': directory,
                 'conv_values': vs,

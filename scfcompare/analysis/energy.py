@@ -9,6 +9,7 @@ def plot_key_vs_convergence_values(data, ref_data, key):
     """
 
     reference_value = ref_data[key]
+    print(reference_value)
 
     for directory, info in data.items():
         conv_values = info['conv_values']
@@ -20,7 +21,8 @@ def plot_key_vs_convergence_values(data, ref_data, key):
     plt.title(f'{key.capitalize().replace("_", " ")} vs Convergence Values')
     plt.legend()
     plt.grid(True)
-    plt.show()
+    plt.savefig(f'diff_{key.capitalize().replace("_", " ")}.png')
+
 
 def plot_percentage_difference_vs_convergence_values(data, ref_data, key):
     """
@@ -48,7 +50,7 @@ def plot_percentage_difference_vs_convergence_values(data, ref_data, key):
     plt.title(f'Percentage Difference in {key.capitalize().replace("_", " ")} vs Convergence Values')
     plt.legend()
     plt.grid(True)
-    plt.show()
+    plt.savefig(f'perc_diff_{key.capitalize().replace("_", " ")}.png')
 
 # Example usage:
 # plot_key_vs_convergence_values(ecut_data, ecut_data['./1-ecut/9-ecut120'], 'total_energy')
