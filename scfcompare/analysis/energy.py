@@ -9,8 +9,9 @@ def plot_key_vs_convergence_values(data, ref_data, key):
     """
 
     reference_value = ref_data[key]
-    print(reference_value)
 
+    print(f'Plotting difference in {key.capitalize().replace("_", " ")}')
+    plt.figure(figsize= (12,8))
     for directory, info in data.items():
         conv_values = info['conv_values']
         values = info[key]
@@ -34,6 +35,10 @@ def plot_percentage_difference_vs_convergence_values(data, ref_data, key):
     """
 
     reference_value = ref_data[key]
+    
+    print(f'Plotting percent difference in {key.capitalize().replace("_", " ")}')
+
+    plt.figure(figsize=(12,8))
 
     for directory, info in data.items():
         conv_values = info['conv_values']

@@ -43,7 +43,7 @@ def plot_forces_z_against_reference(data, reference_structure, window_size=10):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    plt.savefig(f'z_forces_{ref_directory.split("/")[-1]}.png')
     
 def plot_percentage_force_z_difference_against_reference(data, reference_structure, window_size=10):
     """
@@ -89,17 +89,16 @@ def plot_percentage_force_z_difference_against_reference(data, reference_structu
     plt.grid(True)
     plt.tight_layout()
     plt.ylim(-100,100)
-    plt.show()
+    plt.savefig(f'perc_z_forces_{ref_directory.split("/")[-1]}.png')
+
 
 # Example usage:
 # plot_percentage_force_z_difference_against_reference(ecut_data, ecut_data['./1-ecut/9-ecut120'], window_size=10)
 
 
 # Example usage:
-# plot_all_structures_against_reference(ecut_data, 'chosen_structure', window_size=10)
 # plot_forces_z_against_reference(ecut_data, ecut_data['./1-ecut/9-ecut120'], window_size=50)
 # plot_percentage_force_z_difference_against_reference(ecut_data, ecut_data['./1-ecut/9-ecut120'], window_size=50)
-
 
 # plot_forces_z_against_reference(zbox_data, zbox_data['./3-zbox/9b-z26'], window_size=50)
 # plot_percentage_force_z_difference_against_reference(zbox_data, zbox_data['./3-zbox/9b-z26'], window_size=50)

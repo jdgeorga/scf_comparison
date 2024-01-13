@@ -58,6 +58,7 @@ def plot_prdf(data, pair_types, max_distance, bin_size):
         positions = structure_data['positions']
         atom_types = structure_data['atom_types']
         volume = structure_data['volume']
+
         prdf_data = compute_prdf(positions, atom_types, pair_types, max_distance, bin_size, volume)
         for pair_type, (distances, prdf_values) in prdf_data.items():
             plt.plot(distances, prdf_values, label=f'{structure_name} - {pair_type}')
@@ -67,7 +68,8 @@ def plot_prdf(data, pair_types, max_distance, bin_size):
     plt.title('Partial Radial Distribution Functions')
     plt.legend()
     plt.grid(True)
-    plt.show()
+    plt.savefig(f'prdf_{structure_name.split("/")[-2]}.png')
+
 
 def compute_2d_prdf(positions, atom_types, pair_types, max_distance, bin_size, area):
     """
@@ -124,6 +126,7 @@ def plot_2D_prdf(data, pair_types, max_distance, bin_size, xlim_range):
         positions = structure_data['positions']
         atom_types = structure_data['atom_types']
         area = structure_data['area']
+        
         prdf_data = compute_2d_prdf(positions, atom_types, pair_types, max_distance, bin_size, area)
         for pair_type, (distances, prdf_values) in prdf_data.items():
             plt.plot(distances, prdf_values, label=f'{structure_name} - {pair_type}')
@@ -134,7 +137,8 @@ def plot_2D_prdf(data, pair_types, max_distance, bin_size, xlim_range):
     plt.legend()
     plt.grid(True)
     plt.xlim(xlim_range[0], xlim_range[1])
-    plt.show()
+    plt.savefig(f'2D_prdf_{structure_name.split("/")[-2]}.png')
+
 
 def compute_difference_prdf(ref_prdf_data, comp_prdf_data, pair_type):
     """
@@ -195,7 +199,7 @@ def plot_difference_prdf(ref_data, comp_data, pair_types, max_distance, bin_size
         plt.title(f'Difference in PRDF for Atom Pair Type {pair_type}')
         plt.legend()
         plt.grid(True)
-        plt.show()
+        plt.savefig(f'prdf_diff_{structure_name.split("/")[-2]}.png')
 
 # Example Usage
 # data = extract_qe_data(directories, vals)
@@ -277,7 +281,8 @@ def plot_mean_z_displacements(data, ref_structure_key, atom_type_pairs):
     ax.set_title('Mean Z-Direction Displacements by Structure and Atom Type Pair')
     ax.legend()
     plt.xticks(rotation=45)
-    plt.show()
+    plt.savefig(f'mean_z_{structure_name.split("/")[-2]}.png')
+
 
 def plot_absolute_z_distances(data, atom_type_pairs):
     """
@@ -307,7 +312,8 @@ def plot_absolute_z_distances(data, atom_type_pairs):
     ax.legend()
     ax.axhline(y=0)
     plt.xticks(rotation=45)
-    plt.show()
+    plt.savefig(f'abs_z_{structure_name.split("/")[-2]}.png')
+
 
 def calculate_percent_z_displacement(data, ref_structure_key, type_a, type_b):
     """
@@ -366,7 +372,8 @@ def plot_percent_z_displacements(data, ref_structure_key, atom_type_pairs):
     ax.set_title('Percent Z-Direction Displacements by Structure and Atom Type Pair')
     ax.legend()
     plt.xticks(rotation=45)
-    plt.show()
+    plt.savefig(f'perc_z_{structure_name.split("/")[-2]}.png')
+
 
 
 

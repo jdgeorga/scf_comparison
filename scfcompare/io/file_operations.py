@@ -7,6 +7,8 @@ def extract_qe_data(directories, vals):
     Extract forces, total energy, atomic positions, and atom types from QE output files in given directories.
     """
     data = {}
+    print(f"Extracting QE data from directory")
+
     for directory, vs in zip(directories, vals):
         output_file = os.path.join(directory, 'relax.out')
         if os.path.exists(output_file):
@@ -42,5 +44,7 @@ def extract_qe_data(directories, vals):
 
 def get_subdirectories(directory):
     """Get all subdirectories from the specified directory."""
+    print(f"Getting subdirectories of directory: {directory}")
+
     subdirectories = [os.path.join(directory, d) for d in os.listdir(directory) if os.path.isdir(os.path.join(directory, d))]
     return sorted(subdirectories)
