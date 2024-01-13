@@ -281,7 +281,7 @@ def plot_mean_z_displacements(data, ref_structure_key, atom_type_pairs):
     ax.set_title('Mean Z-Direction Displacements by Structure and Atom Type Pair')
     ax.legend()
     plt.xticks(rotation=45)
-    plt.savefig(f'mean_z_{structure_name.split("/")[-2]}.png')
+    plt.savefig(f'mean_z_{structure_names[0].split("/")[-2]}.png')
 
 
 def plot_absolute_z_distances(data, atom_type_pairs):
@@ -312,7 +312,7 @@ def plot_absolute_z_distances(data, atom_type_pairs):
     ax.legend()
     ax.axhline(y=0)
     plt.xticks(rotation=45)
-    plt.savefig(f'abs_z_{structure_name.split("/")[-2]}.png')
+    plt.savefig(f'abs_z_{structure_names[0].split("/")[-2]}.png')
 
 
 def calculate_percent_z_displacement(data, ref_structure_key, type_a, type_b):
@@ -372,7 +372,7 @@ def plot_percent_z_displacements(data, ref_structure_key, atom_type_pairs):
     ax.set_title('Percent Z-Direction Displacements by Structure and Atom Type Pair')
     ax.legend()
     plt.xticks(rotation=45)
-    plt.savefig(f'perc_z_{structure_name.split("/")[-2]}.png')
+    plt.savefig(f'perc_z_{ref_structure_key}.png')
 
 
 
