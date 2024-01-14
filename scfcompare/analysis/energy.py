@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
+from ase import Atoms
 
-def plot_key_vs_convergence_values(data, ref_data, key):
+def plot_energy_vs_convergence_values(data, ref_directory):
     """
     Plot a specified key (e.g., total energy) against different convergence values for each directory in the data.
 
@@ -8,13 +9,14 @@ def plot_key_vs_convergence_values(data, ref_data, key):
     :param key: Key for the value to plot in the data dictionary.
     """
 
-    reference_value = ref_data[key]
+    ref_atom: Atoms = data[ref_directory]
+    reference_value = ref_atom.get_total_energy()
 
-    print(f'Plotting difference in {key.capitalize().replace("_", " ")}')
+    print(f'Plotting difference in Energy')
     plt.figure(figsize= (12,8))
-    for directory, info in data.items():
-        conv_values = info['conv_values']
-        values = info[key]
+    for directory, atom in data.items():
+        conv_values = atom['conv_values']
+        values = atom.get_total_energy()
         plt.scatter(conv_values, values - reference_value, label=directory)
 
     plt.xlabel('Convergence Values')
