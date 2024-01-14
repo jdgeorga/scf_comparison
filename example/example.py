@@ -1,5 +1,5 @@
 import os
-from scfcompare.io.file_operations import extract_qe_data, get_subdirectories
+from scfcompare.io.file_operations import get_atoms_list_from_QE, get_subdirectories
 from scfcompare.analysis import energy
 from scfcompare.analysis import force
 from scfcompare.analysis import structural
@@ -18,8 +18,8 @@ zbox_dirs = get_subdirectories(zbox_path)
 ecut_vals = [40,50,60,70,75,80,90,100,110,120]
 zbox_vals = [15,16,17,18,19, 20, 21, 22, 23, 25,26]
 
-ecut_data = extract_qe_data(ecut_dirs, ecut_vals)
-zbox_data = extract_qe_data(zbox_dirs, zbox_vals)
+ecut_data = get_atoms_list_from_QE(ecut_dirs, ecut_vals)
+zbox_data = get_atoms_list_from_QE(zbox_dirs, zbox_vals)
 
 # # Energy analysis
 # energy.plot_key_vs_convergence_values(ecut_data, ecut_data[f'{ecut_path}/{ecut_ref}'], 'total_energy')

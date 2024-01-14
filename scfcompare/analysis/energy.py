@@ -20,11 +20,11 @@ def plot_energy_vs_convergence_values(data, ref_directory):
         plt.scatter(conv_values, values - reference_value, label=directory)
 
     plt.xlabel('Convergence Values')
-    plt.ylabel(key.capitalize().replace('_', ' '))
-    plt.title(f'{key.capitalize().replace("_", " ")} vs Convergence Values')
+    plt.ylabel('Total Energy [eV]')
+    plt.title(f'Total Energy vs Convergence Values')
     plt.legend()
     plt.grid(True)
-    plt.savefig(f'diff_{key.capitalize().replace("_", " ")}.png')
+    plt.savefig(f'diff_energy_{ref_directory}.png')
 
 
 def plot_percentage_difference_vs_convergence_values(data, ref_data, key):
