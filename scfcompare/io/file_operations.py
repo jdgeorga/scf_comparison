@@ -2,6 +2,7 @@ import os
 from ase.io import read
 from scfcompare.utils import calculate_xy_area, extract_total_wall_time_in_seconds, add_allegro_number_array
 
+#TEST
 def extract_qe_data(directories, vals):
     """
     Extract forces, total energy, atomic positions, and atom types from QE output files in given directories.
