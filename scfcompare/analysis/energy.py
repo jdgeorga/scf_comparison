@@ -26,7 +26,6 @@ def plot_energy_vs_convergence_values(data, ref_directory):
     plt.grid(True)
     plt.savefig(f'diff_energy_{ref_directory}.png')
 
-
 def plot_percentage_difference_vs_convergence_values(data, ref_data, key):
     """
     Plot the percentage difference of a specified key (e.g., total energy) against different convergence values for each directory in the data.
