@@ -1,4 +1,4 @@
-# SCF COMPARISON
+# Layered 2D
 
 A brief description of what this project does and who it's for.
 
