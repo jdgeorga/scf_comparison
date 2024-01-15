@@ -44,7 +44,6 @@ zbox_ref_atom = zbox_data[f'{zbox_path}/{zbox_ref}']
 force.plot_mean_force_diff_by_atom_type(ecut_data,ecut_ref_atom,atom_types=[0,1,2,3,4,5])
 force.plot_mean_percentage_force_diff_by_atom_type(ecut_data,ecut_ref_atom,atom_types=[0,1,2,3,4,5])
 
-
 force.plot_mean_force_diff_by_atom_type(zbox_data,zbox_ref_atom,atom_types=[0,1,2,3,4,5])
 force.plot_mean_percentage_force_diff_by_atom_type(zbox_data,zbox_ref_atom,atom_types=[0,1,2,3,4,5])
 
