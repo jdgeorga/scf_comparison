@@ -6,12 +6,14 @@ from scfcompare.utils import calculate_xy_area, extract_total_wall_time_in_secon
 # ADDING ATOMS implementation
 def get_atoms_list_from_QE(directories, vals = []):
     atoms = {}
+    print(" Getting QE atoms files")
     for directory, conv_values in zip(directories, vals):
+        print(f"Reading from {directory}")
         output_file = os.path.join(directory, 'relax.out')
         if os.path.exists(output_file):
             atom: Atoms= read(output_file, format='espresso-out')
 
-            atom_types = add_allegro_number_array(atoms,eps = 0.5, min_samples=20)
+            atom_types = add_allegro_number_array(atom,eps = 0.5, min_samples=20)
             wall_time = extract_total_wall_time_in_seconds(output_file)
             xy_area = calculate_xy_area(atom)
 
@@ -19,6 +21,7 @@ def get_atoms_list_from_QE(directories, vals = []):
             atom.arrays['atom_types'] = atom_types
             atom.arrays['xy_area'] = xy_area
             atom.arrays['wall_time'] = wall_time
+            atom.arrays['directory'] = directory
 
             atoms[directory] = atom
         else:

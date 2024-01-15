@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from ase import Atoms
 
-def plot_energy_vs_convergence_values(data, ref_directory):
+def plot_energy_vs_convergence_values(atoms, ref_atom):
     """
     Plot a specified key (e.g., total energy) against different convergence values for each directory in the data.
 
@@ -9,13 +9,13 @@ def plot_energy_vs_convergence_values(data, ref_directory):
     :param key: Key for the value to plot in the data dictionary.
     """
 
-    ref_atom: Atoms = data[ref_directory]
+    ref_directory = ref_atom.arrays['directory']
     reference_value = ref_atom.get_total_energy()
 
     print(f'Plotting difference in Energy')
     plt.figure(figsize= (12,8))
-    for directory, atom in data.items():
-        conv_values = atom['conv_values']
+    for directory, atom in atoms.items():
+        conv_values = atom.arrays['conv_values']
         values = atom.get_total_energy()
         plt.scatter(conv_values, values - reference_value, label=directory)
 
@@ -24,9 +24,9 @@ def plot_energy_vs_convergence_values(data, ref_directory):
     plt.title(f'Total Energy vs Convergence Values')
     plt.legend()
     plt.grid(True)
-    plt.savefig(f'diff_energy_{ref_directory}.png')
+    plt.savefig(f'diff_energy_{ref_directory.split("/")[-1]}.png')
 
-def plot_percentage_difference_vs_convergence_values(data, ref_data, key):
+def plot_energy_percentage_difference_vs_convergence_values(atoms, ref_atom):
     """
     Plot the percentage difference of a specified key (e.g., total energy) against different convergence values for each directory in the data.
 
@@ -34,16 +34,16 @@ def plot_percentage_difference_vs_convergence_values(data, ref_data, key):
     :param ref_data: Dictionary containing the reference data for comparison.
     :param key: Key for the value to plot in the data dictionary.
     """
+    ref_directory = ref_atom.arrays['directory']
+    reference_value = ref_atom.get_total_energy()
 
-    reference_value = ref_data[key]
-    
-    print(f'Plotting percent difference in {key.capitalize().replace("_", " ")}')
+    print(f'Plotting percent difference in Total Energy')
 
     plt.figure(figsize=(12,8))
 
-    for directory, info in data.items():
-        conv_values = info['conv_values']
-        values = info[key]
+    for directory, atom in atoms.items():
+        conv_values = atom.arrays['conv_values']
+        values = atom.get_total_energy()
 
         # Calculating the percentage difference
         # Avoid division by zero: add a small constant (e.g., 1e-12) to reference_value
@@ -52,11 +52,11 @@ def plot_percentage_difference_vs_convergence_values(data, ref_data, key):
         plt.scatter(conv_values, percentage_difference, label=directory)
 
     plt.xlabel('Convergence Values')
-    plt.ylabel(f'Percentage Difference in {key.capitalize().replace("_", " ")}')
-    plt.title(f'Percentage Difference in {key.capitalize().replace("_", " ")} vs Convergence Values')
+    plt.ylabel(f'Percentage Difference in Total Energy [eV]')
+    plt.title(f'Percentage Difference in Total Energy vs Convergence Values')
     plt.legend()
     plt.grid(True)
-    plt.savefig(f'perc_diff_{key.capitalize().replace("_", " ")}.png')
+    plt.savefig(f'perc_diff_{ref_directory.split("/")[-1]}.png')
 
 # Example usage:
 # plot_key_vs_convergence_values(ecut_data, ecut_data['./1-ecut/9-ecut120'], 'total_energy')
