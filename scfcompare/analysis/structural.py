@@ -43,7 +43,7 @@ def compute_prdf(positions, atom_types, pair_types, max_distance, bin_size, volu
 
     return prdf_data
 
-def plot_prdf(data, pair_types, max_distance, bin_size):
+def plot_prdf(atoms, pair_types, max_distance, bin_size):
     """
     Plot PRDFs for different structures with atom type information.
 
@@ -54,10 +54,10 @@ def plot_prdf(data, pair_types, max_distance, bin_size):
     """
     plt.figure(figsize=(12, 8))
 
-    for structure_name, structure_data in data.items():
-        positions = structure_data['positions']
-        atom_types = structure_data['atom_types']
-        volume = structure_data['volume']
+    for structure_name, atom in atoms.items():
+        positions = atom.get_positions()
+        atom_types = atom.arrays['atom_types']
+        volume = atom.get_volume()
 
         prdf_data = compute_prdf(positions, atom_types, pair_types, max_distance, bin_size, volume)
         for pair_type, (distances, prdf_values) in prdf_data.items():
@@ -110,7 +110,7 @@ def compute_2d_prdf(positions, atom_types, pair_types, max_distance, bin_size, a
 
     return prdf_data
 
-def plot_2D_prdf(data, pair_types, max_distance, bin_size, xlim_range):
+def plot_2D_prdf(atoms, pair_types, max_distance, bin_size, xlim_range = None):
     """
     Plot 2D PRDFs for different structures with atom type information.
 
@@ -122,10 +122,10 @@ def plot_2D_prdf(data, pair_types, max_distance, bin_size, xlim_range):
     """
     plt.figure(figsize=(12, 8))
     
-    for structure_name, structure_data in data.items():
-        positions = structure_data['positions']
-        atom_types = structure_data['atom_types']
-        area = structure_data['area']
+    for structure_name, atom in atoms.items():
+        positions = atom.get_positions()
+        atom_types = atom.arrays['atom_types']
+        area = atom.arrays['xy_area']
         
         prdf_data = compute_2d_prdf(positions, atom_types, pair_types, max_distance, bin_size, area)
         for pair_type, (distances, prdf_values) in prdf_data.items():
@@ -136,7 +136,8 @@ def plot_2D_prdf(data, pair_types, max_distance, bin_size, xlim_range):
     plt.title('2D Partial Radial Distribution Functions')
     plt.legend()
     plt.grid(True)
-    plt.xlim(xlim_range[0], xlim_range[1])
+    if xlim_range is not None:
+        plt.xlim(xlim_range[0], xlim_range[1])
     plt.savefig(f'2D_prdf_{structure_name.split("/")[-2]}.png')
 
 
@@ -162,7 +163,7 @@ def compute_difference_prdf(ref_prdf_data, comp_prdf_data, pair_type):
     
     return ref_distances, prdf_difference
 
-def plot_difference_prdf(ref_data, comp_data, pair_types, max_distance, bin_size):
+def plot_difference_prdf(atoms,ref_atom, pair_types, max_distance, bin_size):
     """
     Plot the difference in PRDFs for a comparison structure against a reference structure for each pair type.
 
@@ -173,19 +174,19 @@ def plot_difference_prdf(ref_data, comp_data, pair_types, max_distance, bin_size
     :param bin_size: Size of the bins for the histogram.
     """
     # Compute PRDF for the reference structure
-    ref_positions = ref_data['positions']
-    ref_atom_types = ref_data['atom_types']
-    ref_area = ref_data['area']
+    ref_positions = ref_atom.get_positions()
+    ref_atom_types = ref_atom.arrays['atom_types']
+    ref_area = ref_atom.arrays['xy_area']
     ref_prdf_data = compute_2d_prdf(ref_positions, ref_atom_types, pair_types, max_distance, bin_size, ref_area)
     
     # Compute PRDF for each comparison structure
     for pair_type in pair_types:
         plt.figure(figsize=(12, 8))
         
-        for structure_name, structure_data in comp_data.items():
-            comp_positions = structure_data['positions']
-            comp_atom_types = structure_data['atom_types']
-            comp_area = structure_data['area']
+        for structure_name, atom in atoms.items():
+            comp_positions = atom.get_positions()
+            comp_atom_types = atom.arrays['atom_types']
+            comp_area = atom.arrays['xy_area']
             comp_prdf_data = compute_2d_prdf(comp_positions, comp_atom_types, [pair_type], max_distance, bin_size, comp_area)
             
             # Compute the difference in PRDF
@@ -225,7 +226,7 @@ def calculate_z_displacements(positions, atom_types, type_a, type_b):
     z_displacements = np.min(np.abs(pos_a_z[:, np.newaxis] - pos_b_z), axis=1)
     return z_displacements
 
-def calculate_mean_z_displacement(data, ref_structure_key, type_a, type_b):
+def calculate_mean_z_displacement(atoms, ref_atom, type_a, type_b):
     """
     Calculate the mean displacement of z-direction distances between specific atom types,
     comparing a reference structure with all other structures in the dataset.
@@ -238,25 +239,27 @@ def calculate_mean_z_displacement(data, ref_structure_key, type_a, type_b):
     """
     mean_displacements = {}
 
+    ref_directory = ref_atom.arrays['directory']
+
     # Calculate z-direction displacements in the reference structure
-    ref_z_displacements = calculate_z_displacements(data[ref_structure_key]['positions'],
-                                                    data[ref_structure_key]['atom_types'], 
+    ref_z_displacements = calculate_z_displacements(ref_atom.get_positions(),
+                                                    ref_atom.arrays['atom_types'], 
                                                     type_a, type_b)
 
     # Compare with each other structure
-    for key, structure in data.items():
-        if key != ref_structure_key:
-            comp_z_displacements = calculate_z_displacements(structure['positions'],
-                                                             structure['atom_types'], 
+    for directory, atom in atoms.items():
+        if directory != ref_directory:
+            comp_z_displacements = calculate_z_displacements(atom.get_positions(),
+                                                             atom.arrays['atom_types'], 
                                                              type_a, type_b)
 
             # Calculate mean displacement
             mean_displacement = np.mean(np.abs(ref_z_displacements - comp_z_displacements))
-            mean_displacements[key] = mean_displacement
+            mean_displacements[directory] = mean_displacement
 
     return mean_displacements
 
-def plot_mean_z_displacements(data, ref_structure_key, atom_type_pairs):
+def plot_mean_z_displacements(atoms, ref_atom, atom_type_pairs):
     """
     Plot the mean z-direction displacements for each structure and each pair of atom types.
 
@@ -264,7 +267,9 @@ def plot_mean_z_displacements(data, ref_structure_key, atom_type_pairs):
     :param ref_structure_key: Key for the reference structure in the data dictionary.
     :param atom_type_pairs: List of tuples of atom type pairs to compare.
     """
-    structure_names = [key for key in data.keys() if key != ref_structure_key]
+
+    ref_directory = ref_atom.arrays['directory']
+    structure_names = [directory for directory in atoms.keys() if directory != ref_directory]
     num_pairs = len(atom_type_pairs)
 
     # Prepare a scatter plot for mean displacements
@@ -272,7 +277,7 @@ def plot_mean_z_displacements(data, ref_structure_key, atom_type_pairs):
     colors = plt.cm.viridis(np.linspace(0, 1, num_pairs))
 
     for idx, (type_a, type_b) in enumerate(atom_type_pairs):
-        mean_displacements = calculate_mean_z_displacement(data, ref_structure_key, type_a, type_b)
+        mean_displacements = calculate_mean_z_displacement(atoms, ref_atom, type_a, type_b)
         ax.scatter(structure_names, [mean_displacements[name] for name in structure_names], 
                    label=f'Type {type_a} - Type {type_b}', color=colors[idx])
 
@@ -284,14 +289,14 @@ def plot_mean_z_displacements(data, ref_structure_key, atom_type_pairs):
     plt.savefig(f'mean_z_{structure_names[0].split("/")[-2]}.png')
 
 
-def plot_absolute_z_distances(data, atom_type_pairs):
+def plot_absolute_z_distances(atoms, atom_type_pairs):
     """
     Plot the absolute z-direction distances for each structure and each pair of atom types.
 
     :param data: Dictionary containing structure data.
     :param atom_type_pairs: List of tuples of atom type pairs to compare.
     """
-    structure_names = list(data.keys())
+    structure_names = list(atoms.keys())
     num_pairs = len(atom_type_pairs)
 
     # Prepare a scatter plot for absolute z-direction distances
@@ -299,10 +304,10 @@ def plot_absolute_z_distances(data, atom_type_pairs):
     colors = plt.cm.viridis(np.linspace(0, 1, num_pairs))
 
     for idx, (type_a, type_b) in enumerate(atom_type_pairs):
-        z_distances = {name: np.mean(calculate_z_displacements(structure['positions'], 
-                                                              structure['atom_types'], 
+        z_distances = {directory: np.mean(calculate_z_displacements(atom.get_positions(), 
+                                                              atom.arrays['atom_types'], 
                                                               type_a, type_b))
-                       for name, structure in data.items()}
+                       for directory, atom in atoms.items()}
         ax.scatter(structure_names, [z_distances[name] for name in structure_names], 
                    label=f'Type {type_a} - Type {type_b}', color=colors[idx])
 
@@ -315,7 +320,7 @@ def plot_absolute_z_distances(data, atom_type_pairs):
     plt.savefig(f'abs_z_{structure_names[0].split("/")[-2]}.png')
 
 
-def calculate_percent_z_displacement(data, ref_structure_key, type_a, type_b):
+def calculate_percent_z_displacement(atoms, ref_atom, type_a, type_b):
     """
     Calculate the percent displacement of z-direction distances between specific atom types,
     comparing a reference structure with all other structures in the dataset.
@@ -327,27 +332,27 @@ def calculate_percent_z_displacement(data, ref_structure_key, type_a, type_b):
     :return: Dictionary of percent displacements for each structure compared to the reference.
     """
     percent_displacements = {}
-
+    ref_directory = ref_atom.arrays['directory']
     # Calculate z-direction displacements in the reference structure
-    ref_z_displacements = calculate_z_displacements(data[ref_structure_key]['positions'],
-                                                    data[ref_structure_key]['atom_types'], 
+    ref_z_displacements = calculate_z_displacements(ref_atom.get_positions(),
+                                                    ref_atom.arrays['atom_types'], 
                                                     type_a, type_b)
 
     # Compare with each other structure
-    for key, structure in data.items():
-        if key != ref_structure_key:
-            comp_z_displacements = calculate_z_displacements(structure['positions'],
-                                                             structure['atom_types'], 
+    for directory, atom in atoms.items():
+        if directory != ref_directory:
+            comp_z_displacements = calculate_z_displacements(atom.get_positions(),
+                                                             atom.arrays['atom_types'], 
                                                              type_a, type_b)
 
             # Calculate percent displacement
             # Avoid division by zero: add a small constant (e.g., 1e-9) to ref_z_displacements
             percent_displacement = np.mean(np.abs(ref_z_displacements - comp_z_displacements) / (ref_z_displacements + 1e-9)) * 100
-            percent_displacements[key] = percent_displacement
+            percent_displacements[directory] = percent_displacement
 
     return percent_displacements
 
-def plot_percent_z_displacements(data, ref_structure_key, atom_type_pairs):
+def plot_percent_z_displacements(atoms, ref_atom, atom_type_pairs):
     """
     Plot the percent z-direction displacements for each structure and each pair of atom types.
 
@@ -355,7 +360,8 @@ def plot_percent_z_displacements(data, ref_structure_key, atom_type_pairs):
     :param ref_structure_key: Key for the reference structure in the data dictionary.
     :param atom_type_pairs: List of tuples of atom type pairs to compare.
     """
-    structure_names = [key for key in data.keys() if key != ref_structure_key]
+    ref_directory = ref_atom.arrays['directory']
+    structure_names = [directory for directory in atoms.keys() if directory != ref_directory]
     num_pairs = len(atom_type_pairs)
 
     # Prepare a scatter plot for percent displacements
@@ -363,7 +369,7 @@ def plot_percent_z_displacements(data, ref_structure_key, atom_type_pairs):
     colors = plt.cm.viridis(np.linspace(0, 1, num_pairs))
 
     for idx, (type_a, type_b) in enumerate(atom_type_pairs):
-        percent_displacements = calculate_percent_z_displacement(data, ref_structure_key, type_a, type_b)
+        percent_displacements = calculate_percent_z_displacement(atoms, ref_atom, type_a, type_b)
         ax.scatter(structure_names, [percent_displacements[name] for name in structure_names], 
                    label=f'Type {type_a} - Type {type_b}', color=colors[idx])
 
@@ -372,7 +378,7 @@ def plot_percent_z_displacements(data, ref_structure_key, atom_type_pairs):
     ax.set_title('Percent Z-Direction Displacements by Structure and Atom Type Pair')
     ax.legend()
     plt.xticks(rotation=45)
-    plt.savefig(f'perc_z_{ref_structure_key}.png')
+    plt.savefig(f'perc_z_{structure_names[0].split("/")[-2]}.png')
 
 
 
