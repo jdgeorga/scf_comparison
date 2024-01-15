@@ -4,11 +4,11 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="scfcompare",
-    version="0.0.1",
+    name="moirecompare",
+    version="1.0.0",
     author="Johnathan Georgaras",
     author_email="jdgeorga@stanford.edu",
-    description="Comparing QE outputs",
+    description="Comparing moire structures from QE/LAMMPS/ALLEGRO",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="",
