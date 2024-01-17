@@ -1,2 +1,5 @@
 scfcompare.egg-info/
+moirecompare.egg-info/
+*.ipynb_checkpoints
+
 *.pyc

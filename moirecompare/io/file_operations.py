@@ -1,7 +1,7 @@
 import os
 from ase.io import read
 from ase import Atoms
-from scfcompare.utils import calculate_xy_area, extract_total_wall_time_in_seconds, add_allegro_number_array
+from moirecompare.utils import calculate_xy_area, extract_total_wall_time_in_seconds, add_allegro_number_array
 
 # ADDING ATOMS implementation
 def get_atoms_list_from_QE(directories, vals = []):
