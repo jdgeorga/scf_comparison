@@ -155,14 +155,12 @@ class AllegroCalculator(Calculator):
         energies = zeros(n_atoms)
         energy = 0
 
-        
         L1_energy = 0
         L1_forces = zeros((n_atoms, 3))
         L2_energy = 0
         L2_forces = zeros((n_atoms, 3))  
         IL_energy = 0
         IL_forces = zeros((n_atoms, 3))
-
 
         for l_id, l in enumerate(self.layer_at_info):
             model, r_max = self.intralayer_model_dict[l_id]
@@ -284,6 +282,7 @@ if __name__ == "__main__":
     at = read("./MoS2-Bilayer.xyz")
     calc.calculate(at)
 
+# Example Usage:
 # calc = AllegroCalculator(4, 
 #                          ["MoL1", "SL1", "SeL1", "MoL2", "SL2", "SeL2"],
 #                          device='cpu')
