@@ -83,3 +83,73 @@ def add_allegro_number_array(ase_atom: Atoms, eps: float = 5, min_samples: int =
     allegro_number_array = np.array([label_mapping[label] if label != -1 else -1 for label in labels])
 
     return allegro_number_array
+
+# Function to convert PhonopyAtoms to ASE Atoms object
+def phonopy_atoms_to_ase(atoms_phonopy):
+    """Convert PhonopyAtoms to Atoms."""
+    try:
+        from ase.atoms import Atoms
+    except ImportError:
+        raise ImportError("ASE python module was not found.")
+
+    # Create and return a new Atoms object
+    # with the data from the PhonopyAtoms object
+    ase_atoms = Atoms(
+        cell=atoms_phonopy.cell,
+        scaled_positions=atoms_phonopy.scaled_positions,
+        numbers=atoms_phonopy.numbers,
+        pbc=True,
+    )
+    return ase_atoms
+
+
+def gen_ase(cell, scaled_positions, numbers):
+    """Convert PhonopyAtoms to Atoms."""
+    try:
+        from ase.atoms import Atoms
+    except ImportError:
+        raise ImportError("ASE python module was not found.")
+
+    # Create and return a new Atoms object
+    # with the data from the PhonopyAtoms object
+    ase_atoms = Atoms(
+        cell=cell,
+        scaled_positions=scaled_positions,
+        numbers=numbers,
+        pbc=True,
+    )
+    return ase_atoms
+
+
+# Function to convert ASE Atoms to PhonopyAtoms object
+def ase_to_phonopy_atoms(ase_atoms):
+    try:
+        from phonopy.structure.atoms import PhonopyAtoms
+    except ImportError:
+        raise ImportError("Phonopy python module was not found.")
+    # Create and return a new PhonopyAtoms object
+    # with the data from the ASE Atoms object
+    phonopy_atoms = PhonopyAtoms(
+        symbols=ase_atoms.get_chemical_symbols(),
+        scaled_positions=ase_atoms.get_scaled_positions(),
+        cell=ase_atoms.cell,
+    )
+    return phonopy_atoms
+
+
+# Function to generate qpoints along the BZ path given high-symmetry qpoints
+def qpoints_Band_paths(HiSym_Qpoints, Nq_path):
+    """Generate qpoints along the BZ path based on high-symmetry qpoints."""
+    (Nq, DIM) = np.shape(HiSym_Qpoints)
+    bands = []
+    if Nq>=1:
+        for iq in np.arange(0,Nq-1):
+            qstart=HiSym_Qpoints[iq]
+            qend=HiSym_Qpoints[iq+1]
+            band=[]
+            for i in np.arange(0,Nq_path+1):
+                band.append(np.array(qstart)+(np.array(qend)-np.array(qstart))/Nq_path*i)
+            bands.append(band)
+    if Nq==1:
+        bands.append(HiSym_Qpoints)
+    return bands

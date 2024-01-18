@@ -37,10 +37,19 @@ This project requires the following Python libraries:
 - numpy
 - matplotlib
 - scipy
-- ase
+- ase / 3.23 
 - scikit-learn
 
 Ensure these are installed in your environment, or use the `requirements.txt` file to install them.
+
+For ase, you need to specify in ~/.config/ase/config.ini
+[parallel]
+binary = mpirun
+nprocs_kwarg_trans = -np
+
+[espresso]
+binary = pw.x
+pseudo_path = /home/ase/upf_pseudos
 
 ## Contributing
 Contributions to this project are welcome. Please fork the repository and submit a pull request with your changes.
