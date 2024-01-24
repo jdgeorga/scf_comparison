@@ -60,7 +60,7 @@ def extract_total_wall_time_in_seconds(filename: str) -> float:
         return None
 
 
-def add_allegro_number_array(ase_atom: Atoms, eps: float = 5, min_samples: int = 1) -> np.ndarray:
+def add_allegro_number_array(ase_atom: Atoms, eps: float = .75, min_samples: int = 1) -> np.ndarray:
     """
     Assigns a number from 0 to 5 to each atom depending on its layer and position using DBSCAN clustering algorithm.
 
@@ -79,8 +79,12 @@ def add_allegro_number_array(ase_atom: Atoms, eps: float = 5, min_samples: int =
     mean_positions = [z_coords[labels == label].mean() for label in unique_labels]
     sorted_indices = np.argsort(mean_positions)
 
-    label_mapping = np.array([0, 2, 1, 3, 5, 4])
-    allegro_number_array = np.array([label_mapping[label] if label != -1 else -1 for label in labels])
+
+
+    label_mapping = np.array([1, 2, 0, 4, 5, 3])
+    # print(labels[:6],sorted_indices,sorted_indices[label_mapping])
+
+    allegro_number_array = np.array([sorted_indices[label_mapping][label] if label != -1 else -1 for label in labels])
 
     return allegro_number_array
 
@@ -153,3 +157,30 @@ def qpoints_Band_paths(HiSym_Qpoints, Nq_path):
     if Nq==1:
         bands.append(HiSym_Qpoints)
     return bands
+
+
+def replace_line_starting_with(file_name, start_string, new_line):
+    """
+    Replaces lines in a file that start with a specified string with a new line.
+
+    :param file_name: The path to the file
+    :param start_string: The beginning string of the line to be replaced
+    :param new_line: The new line that will replace the old line
+    """
+    # Read the file contents
+    with open(file_name, 'r') as file:
+        lines = file.readlines()
+
+    # Replace lines starting with the specified string
+    lines = [new_line+"\n" if line.startswith(start_string) else line for line in lines]
+
+    # Write back the modified contents
+    with open(file_name, 'w') as file:
+        file.writelines(lines)
+
+# Example usage
+# replace_line_starting_with('path_to_your_file.txt', 'start_of_old_line', 'new_line_content')
+
+
+# Example usage
+# replace_line('path_to_your_file.txt', 'old_line_content', 'new_line_content')
