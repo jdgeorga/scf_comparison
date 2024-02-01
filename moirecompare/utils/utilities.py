@@ -184,3 +184,23 @@ def replace_line_starting_with(file_name, start_string, new_line):
 
 # Example usage
 # replace_line('path_to_your_file.txt', 'old_line_content', 'new_line_content')
+
+def rotate_to_x_axis(atoms):
+    """Rotate the structure so that the first lattice vector lies along the x-axis."""
+    v1 = atoms.get_cell()[0]  # First lattice vector
+
+    # Normalize the first lattice vector
+    v1_norm = v1 / np.linalg.norm(v1)
+
+    # Calculate the angle between v1 and the x-axis
+    angle = np.arccos(np.clip(np.dot(v1_norm, [1, 0, 0]), -1.0, 1.0))
+
+    # Axis for rotation: cross product of v1 and x-axis
+    axis = np.cross(v1_norm, [1, 0, 0])
+
+    # Check if rotation is necessary
+    if np.linalg.norm(axis) > 1e-5 and not np.isnan(angle):
+        # Rotate around the axis by the calculated angle
+        atoms.rotate(v=axis, a=np.degrees(angle), rotate_cell=True)
+
+    return atoms

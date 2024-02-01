@@ -50,6 +50,7 @@ class AllegroCalculator(Calculator):
         self,
         max_num_layers: int,
         atom_types: List[str],
+        intralayer_symbol_type: Dict[str, int],
         device: Union[str, torch.device],
         model_dictionary: Dict[str, ScriptModule] = None,
     ):
@@ -60,15 +61,15 @@ class AllegroCalculator(Calculator):
         layer_at_info: List[Tuple[int]] = [()] * max_num_layers
         if num_atom_types != num_atom_types_tmp:
             raise CalculatorSetupError("You have repeated atom types")
-        atom_type_str: Pattern = compile("([A-Za-z]+)L([0-9]+)")
+        atom_type_str: Pattern = compile("([A-Za-z]+)([0-9]+)L([0-9]+)")
         atom_type_info: List[Dict[str, Dict[str, Union[int, str]]]] = []
-
+ 
         for i, atom_type in enumerate(atom_types):
             tmp: Match = atom_type_str.match(atom_type)
             if tmp is None:
                 raise CalculatorSetupError("Invalid atom type format")
             relevant_info_tmp: Tuple[str] = tmp.groups()
-            layer_id = int(relevant_info_tmp[1])
+            layer_id = int(relevant_info_tmp[2])
             layer_at_info[layer_id - 1] += (i,)
             if layer_id > max_num_layers:
                 raise CalculatorSetupError("Layer ID exceeds max number of layers")
@@ -91,6 +92,7 @@ class AllegroCalculator(Calculator):
             atom_type_info.append(atom_info_dict)
         self.atom_type_info: List[Dict[str, Dict[str, Union[int, str]]]] = atom_type_info
         self.atom_types: List[str] = atom_types
+        self.intralayer_symbol_type = intralayer_symbol_type
         self.layer_at_info: List[Tuple[int]] = [item for item in layer_at_info if len(item) != 0]
         self.num_layers = len(self.layer_at_info)
         self.device = device
@@ -101,6 +103,9 @@ class AllegroCalculator(Calculator):
         num_layers: int,
         intalayer_model_path_list: List[Path],
         interlayer_model_path_list: List[Path],
+        IL_factor: float = 1.0,
+        L1_factor: float = 1.0,
+        L2_factor: float = 1.0,
     ):
         intralayer_model_dict: Dict[int, (ScriptModule, float)] = {}
         interlayer_model_dict: Dict[str, (ScriptModule, float)] = {}
@@ -136,6 +141,9 @@ class AllegroCalculator(Calculator):
                     ct += 1
         self.intralayer_model_dict: Dict[int, (ScriptModule, float)] = intralayer_model_dict
         self.interlayer_model_dict: Dict[str, (ScriptModule, float)] = interlayer_model_dict
+        self.IL_factor = IL_factor
+        self.L1_factor = L1_factor
+        self.L2_factor = L2_factor
 
     def calculate(
         self,
@@ -144,7 +152,7 @@ class AllegroCalculator(Calculator):
         system_changes=all_changes,
     ):
         Calculator.calculate(self, atoms)
-        intralayer_chemical_symbol_to_type = {"Mo": 0, "S": 1}
+        intralayer_chemical_symbol_to_type = self.intralayer_symbol_type
         if properties is None:
             properties = self.implemented_properties
         if AtomicDataDict.ATOM_TYPE_KEY not in atoms.arrays:
@@ -172,6 +180,7 @@ class AllegroCalculator(Calculator):
                 rel_ats = where(logical_and(all_types >= min_id, all_types <= max_id))[0]
                 if len(rel_ats) != 0:
                     chemical_symbol_to_type = intralayer_chemical_symbol_to_type
+                    
                     tmp_at = atoms[rel_ats].copy()
                     data = AtomicData.from_ase(
                         atoms=tmp_at,
@@ -201,16 +210,20 @@ class AllegroCalculator(Calculator):
                     data = AtomicData.to_AtomicDataDict(data)
                     out = model(data)
                     results = get_results_from_model_out(out)
-                    energies[rel_ats] += results["energies"]
-                    forces[rel_ats] += results["forces"]
-                    energy += results["energy"]
+
                     
                     if l_id == 0:
-                        L1_energy += results["energy"]
-                        L1_forces[rel_ats] += results["forces"]
+                        L1_energy += results["energy"] * self.L1_factor
+                        L1_forces[rel_ats] += results["forces"] * self.L1_factor
+                        energies[rel_ats] += results["energies"] * self.L1_factor
+                        forces[rel_ats] += results["forces"] * self.L1_factor
+                        energy += results["energy"] * self.L1_factor
                     if l_id == 1:
-                        L2_energy += results["energy"]
-                        L2_forces[rel_ats] += results["forces"]
+                        L2_energy += results["energy"] * self.L2_factor
+                        L2_forces[rel_ats] += results["forces"] * self.L2_factor
+                        energies[rel_ats] += results["energies"] * self.L2_factor
+                        forces[rel_ats] += results["forces"] * self.L2_factor
+                        energy += results["energy"] * self.L2_factor
 
         for l_id1, l_id2 in combinations(range(len(self.layer_at_info)), 2):
             l1 = self.layer_at_info[l_id1]
@@ -250,13 +263,14 @@ class AllegroCalculator(Calculator):
                     data = data.to(self.device)
                     data = AtomicData.to_AtomicDataDict(data)
                     out = model(data)
-                    results = get_results_from_model_out(out)
-                    energies[rel_ats] += results["energies"]
-                    forces[rel_ats] += results["forces"]
-                    energy += results["energy"]
                     
-                    IL_forces[rel_ats] += results["forces"]
-                    IL_energy += results["energy"]
+                    results = get_results_from_model_out(out)
+                    energies[rel_ats] += results["energies"] * self.IL_factor
+                    forces[rel_ats] += results["forces"] * self.IL_factor
+                    energy += results["energy"] * self.IL_factor
+                    
+                    IL_forces[rel_ats] += results["forces"] * self.IL_factor
+                    IL_energy += results["energy"] * self.IL_factor
 
         self.results = {}
         self.results["energy"] = energy
@@ -270,17 +284,17 @@ class AllegroCalculator(Calculator):
         self.results["IL_forces"] = IL_forces
 
 
-if __name__ == "__main__":
-    from ase.io import read
+# if __name__ == "__main__":
+#     # from ase.io import read
 
-    calc = NeuqIPMultiLayerCalculator(4, ["MoL1", "SL1", "SeL1", "MoL2", "SL2", "SeL2"])
-    calc.setup_models(
-        2,
-        [Path("./intralayer.pth"), Path("./intralayer.pth")],
-        [Path("./interlayer.pth")],
-    )
-    at = read("./MoS2-Bilayer.xyz")
-    calc.calculate(at)
+#     # calc = NeuqIPMultiLayerCalculator(4, ["MoL1", "SL1", "SeL1", "MoL2", "SL2", "SeL2"])
+#     # calc.setup_models(
+#     #     2,
+#     #     [Path("./intralayer.pth"), Path("./intralayer.pth")],
+#     #     [Path("./interlayer.pth")],
+#     # )
+#     # at = read("./MoS2-Bilayer.xyz")
+#     # calc.calculate(at)
 
 # Example Usage:
 # calc = AllegroCalculator(4, 
