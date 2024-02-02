@@ -197,8 +197,10 @@ if __name__ == "__main__":
     from ase import Atoms
     from ase.io import read,write
 
+    # Testing LayerNeighborList and LayerLennardJones
     print("reading atoms")
-    atoms = read("bp_interlayer_dset.xyz",index = 0, format = 'extxyz')
+    atoms = read("/pscratch/sd/j/jdgeorga/twist-anything/scf_comparison/scratch/BP/bp_interlayer_dset.xyz",
+                 index=0, format='extxyz')
 
     nl = LayerNeighborList(cutoffs=[2.2] * len(atoms),
                         layer_atom_types=[[0,1,2,3],
@@ -221,3 +223,23 @@ if __name__ == "__main__":
     print(atoms.get_potential_energy())
     print("Atom forces")
     print(atoms.get_forces())
+
+    # How to loop over many structures and epsilons efficiently
+    structures = read("/pscratch/sd/j/jdgeorga/twist-anything/scf_comparison/scratch/BP/bp_interlayer_dset.xyz", index=":", format='extxyz')
+
+    lj = LayerLennardJones(epsilon=0.01, sigma=3.03,
+                           layer_atom_types=[[0, 1, 2, 3],
+                                             [4, 5, 6, 7]],
+                           rc=10.0)
+    epsilon_list = [0.01, 0.02, 0.03]
+    sigma_list = [3, 4, 5]
+    for epsilon, sigma in zip(epsilon_list, sigma_list):
+        lj.parameters.epsilon = epsilon
+        lj.parameters.sigma = sigma
+
+        for ii in range(len(structures[:10])):
+            lj.calculate(structures[ii])
+            print(f"Epsilon: {epsilon}",
+                  f"Sigma: {sigma}",
+                  f"Structure: {ii}",
+                  f"Energy: {np.round(lj.results['energy'],2)} eV")
