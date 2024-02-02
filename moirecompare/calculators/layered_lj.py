@@ -3,6 +3,8 @@ from ase.neighborlist import NeighborList
 from ase.calculators.lj import LennardJones, cutoff_function, d_cutoff_function
 from ase.stress import full_3x3_to_voigt_6_stress
 from ase.calculators.calculator import Calculator, all_changes
+import time
+
 
 class LayerNeighborList(NeighborList):
     """Optimized filtered neighbor list that includes only certain atom type pairs."""
@@ -98,7 +100,7 @@ class LayerLennardJones(LennardJones):
             properties = self.implemented_properties
 
         Calculator.calculate(self, atoms, properties, system_changes)
-
+        t = time.time()
         natoms = len(self.atoms)
 
         sigma = self.parameters.sigma
@@ -108,16 +110,17 @@ class LayerLennardJones(LennardJones):
         smooth = self.parameters.smooth
         layer_atom_types = self.layer_atom_types
         atom_types = self.atoms.arrays['atom_types']
-
-        if self.nl is None or 'numbers' in system_changes:
+        # if self.nl is None or 'numbers' in system_changes:
+        if self.nl is None:
+            print("Updating neighbor list")
             self.nl = LayerNeighborList(
                 cutoffs=[rc / 2] * natoms,
                 layer_atom_types=layer_atom_types,
                 self_interaction=False,
                 bothways=True
                 )
-
-        self.nl.update(self.atoms)
+            self.nl.update(self.atoms)
+        # print("Time to update neighbor list", time.time() - t)
 
         positions = self.atoms.positions
         cell = self.atoms.cell
@@ -171,14 +174,14 @@ class LayerLennardJones(LennardJones):
             stresses[ii] += 0.5 * np.dot(
                 pairwise_forces.T, distance_vectors
             )  # equivalent to outer product
-
+        # print("Time to loop", time.time() - t)
         # no lattice, no stress
         if self.atoms.cell.rank == 3:
             stresses = full_3x3_to_voigt_6_stress(stresses)
             self.results['stress'] = stresses.sum(
                 axis=0) / self.atoms.get_volume()
             self.results['stresses'] = stresses / self.atoms.get_volume()
-        
+
         energy = energies.sum()
         self.results['energy'] = energy
         self.results['energies'] = energies
@@ -186,6 +189,8 @@ class LayerLennardJones(LennardJones):
         self.results['free_energy'] = energy
 
         self.results['forces'] = forces
+        # print("Time to add results", time.time() - t)
+
 
 
 if __name__ == "__main__":
