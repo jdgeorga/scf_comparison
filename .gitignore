@@ -3,3 +3,5 @@ moirecompare.egg-info/
 *.ipynb_checkpoints
 
 *.pyc
+
+**/BP.bilayer.save
