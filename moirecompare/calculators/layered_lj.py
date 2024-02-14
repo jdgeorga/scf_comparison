@@ -9,10 +9,16 @@ import time
 class LayerNeighborList(NeighborList):
     """Optimized filtered neighbor list that includes only certain atom type pairs."""
 
-    def __init__(self, cutoffs, layer_atom_types: list, skin=0.3, sorted=False,
-                 self_interaction=True, bothways=False):
-        super().__init__(cutoffs, skin, sorted, self_interaction,
-                         bothways)
+    def __init__(
+        self,
+        cutoffs,
+        layer_atom_types: list,
+        skin=0.3,
+        sorted=False,
+        self_interaction=True,
+        bothways=False,
+    ):
+        super().__init__(cutoffs, skin, sorted, self_interaction, bothways)
         self.layer1_atom_types = np.array(layer_atom_types[0], dtype=int)
         self.layer2_atom_types = np.array(layer_atom_types[1], dtype=int)
 
@@ -21,9 +27,8 @@ class LayerNeighborList(NeighborList):
         See :meth:`ase.neighborlist.PrimitiveNeighborList.update` or
         :meth:`ase.neighborlist.PrimitiveNeighborList.update`.
         """
-        self.atom_types = atoms.arrays['atom_types']
-        return self.nl.update(atoms.pbc, atoms.get_cell(complete=True),
-                              atoms.positions)
+        self.atom_types = atoms.arrays["atom_types"]
+        return self.nl.update(atoms.pbc, atoms.get_cell(complete=True), atoms.positions)
 
     def get_neighbors(self, atom_index):
         """
@@ -31,32 +36,39 @@ class LayerNeighborList(NeighborList):
         :meth:`ase.neighborlist.PrimitiveNeighborList.get_neighbors`.
         """
         if self.nl.nupdates <= 0:
-            raise RuntimeError('Must call update(atoms) on your neighborlist '
-                               'first!')
-        
+            raise RuntimeError("Must call update(atoms) on your neighborlist " "first!")
+
         atom_index_type = self.atom_types[atom_index]
 
         # Determine atom_index layer
         if atom_index_type in self.layer1_atom_types:
-            neighbor_mask = np.isin(self.atom_types[self.nl.neighbors[atom_index]], self.layer2_atom_types)
+            neighbor_mask = np.isin(
+                self.atom_types[self.nl.neighbors[atom_index]], self.layer2_atom_types
+            )
         elif atom_index_type in self.layer2_atom_types:
-            neighbor_mask = np.isin(self.atom_types[self.nl.neighbors[atom_index]], self.layer1_atom_types)
+            neighbor_mask = np.isin(
+                self.atom_types[self.nl.neighbors[atom_index]], self.layer1_atom_types
+            )
         else:
             raise ValueError(f"Atom index {atom_index} not in layer1 or layer2")
-        
-        return self.nl.neighbors[atom_index][neighbor_mask], self.nl.displacements[atom_index][neighbor_mask]
-    
+
+        return (
+            self.nl.neighbors[atom_index][neighbor_mask],
+            self.nl.displacements[atom_index][neighbor_mask],
+        )
+
 
 class LayerLennardJones(LennardJones):
     """Lennard-Jones potential with layer-dependent parameters."""
-    implemented_properties = ['energy', 'energies', 'forces', 'free_energy']
-    implemented_properties += ['stress', 'stresses']  # bulk properties
+
+    implemented_properties = ["energy", "energies", "forces", "free_energy"]
+    implemented_properties += ["stress", "stresses"]  # bulk properties
     default_parameters = {
-        'epsilon': 1.0,
-        'sigma': 1.0,
-        'rc': None,
-        'ro': None,
-        'smooth': False,
+        "epsilon": 1.0,
+        "sigma": 1.0,
+        "rc": None,
+        "ro": None,
+        "smooth": False,
     }
     nolabel = True
 
@@ -109,16 +121,16 @@ class LayerLennardJones(LennardJones):
         ro = self.parameters.ro
         smooth = self.parameters.smooth
         layer_atom_types = self.layer_atom_types
-        atom_types = self.atoms.arrays['atom_types']
-        # if self.nl is None or 'numbers' in system_changes:
-        if self.nl is None:
-            print("Updating neighbor list")
+        atom_types = self.atoms.arrays["atom_types"]
+        # if self.nl is None or "numbers" in system_changes:
+        if True:
+            # print("Updating neighbor list")
             self.nl = LayerNeighborList(
                 cutoffs=[rc / 2] * natoms,
                 layer_atom_types=layer_atom_types,
                 self_interaction=False,
-                bothways=True
-                )
+                bothways=True,
+            )
             self.nl.update(self.atoms)
         # print("Time to update neighbor list", time.time() - t)
 
@@ -127,13 +139,16 @@ class LayerLennardJones(LennardJones):
 
         # potential value at rc
         e0 = 4 * epsilon * ((sigma / rc) ** 12 - (sigma / rc) ** 6)
-
+        e0 = 0
         energies = np.zeros(natoms)
         forces = np.zeros((natoms, 3))
         stresses = np.zeros((natoms, 3, 3))
-
+        dvecs = []
         for ii in range(natoms):
-            if atom_types[ii] not in layer_atom_types[0] and atom_types[ii] not in layer_atom_types[1]:
+            if (
+                atom_types[ii] not in layer_atom_types[0]
+                and atom_types[ii] not in layer_atom_types[1]
+            ):
                 # print(f"Atom type {atom_types[ii]} not in layer_atom_types")
                 continue
 
@@ -143,10 +158,13 @@ class LayerLennardJones(LennardJones):
             # pointing *towards* neighbours
             distance_vectors = positions[neighbors] + cells - positions[ii]
 
-            r2 = (distance_vectors ** 2).sum(1)
-            c6 = (sigma ** 2 / r2) ** 3
-            c6[r2 > rc ** 2] = 0.0
-            c12 = c6 ** 2
+            r2 = (distance_vectors**2).sum(1)
+            dvecs.append(r2)
+            c6 = (sigma**2 / r2) ** 3
+            c6[r2 > rc**2] = 0.0
+            tmp = np.sqrt(r2[r2 < rc**2])
+
+            c12 = c6**2
 
             if smooth:
                 cutoff_fn = cutoff_function(r2, rc**2, ro**2)
@@ -154,13 +172,11 @@ class LayerLennardJones(LennardJones):
 
             pairwise_energies = 4 * epsilon * (c12 - c6)
             pairwise_forces = -24 * epsilon * (2 * c12 - c6) / r2  # du_ij
-
             if smooth:
                 # order matters, otherwise the pairwise energy is already
                 # modified
                 pairwise_forces = (
-                    cutoff_fn * pairwise_forces + 2 * d_cutoff_fn
-                    * pairwise_energies
+                    cutoff_fn * pairwise_forces + 2 * d_cutoff_fn * pairwise_energies
                 )
                 pairwise_energies *= cutoff_fn
             else:
@@ -176,48 +192,55 @@ class LayerLennardJones(LennardJones):
             )  # equivalent to outer product
         # print("Time to loop", time.time() - t)
         # no lattice, no stress
+        # print(dvecs)
         if self.atoms.cell.rank == 3:
             stresses = full_3x3_to_voigt_6_stress(stresses)
-            self.results['stress'] = stresses.sum(
-                axis=0) / self.atoms.get_volume()
-            self.results['stresses'] = stresses / self.atoms.get_volume()
+            self.results["stress"] = stresses.sum(axis=0) / self.atoms.get_volume()
+            self.results["stresses"] = stresses / self.atoms.get_volume()
 
         energy = energies.sum()
-        self.results['energy'] = energy
-        self.results['energies'] = energies
+        self.results["energy"] = energy
+        self.results["energies"] = energies
 
-        self.results['free_energy'] = energy
+        self.results["free_energy"] = energy
 
-        self.results['forces'] = forces
+        self.results["forces"] = forces
+
+        return energy
         # print("Time to add results", time.time() - t)
-
 
 
 if __name__ == "__main__":
     from ase import Atoms
-    from ase.io import read,write
+    from ase.io import read, write
 
     # Testing LayerNeighborList and LayerLennardJones
     print("reading atoms")
-    atoms = read("/pscratch/sd/j/jdgeorga/twist-anything/scf_comparison/scratch/BP/bp_interlayer_dset.xyz",
-                 index=0, format='extxyz')
+    atoms = read(
+        "/pscratch/sd/j/jdgeorga/twist-anything/scf_comparison/scratch/BP/bp_interlayer_dset.xyz",
+        index=0,
+        format="extxyz",
+    )
 
-    nl = LayerNeighborList(cutoffs=[2.2] * len(atoms),
-                        layer_atom_types=[[0,1,2,3],
-                                            [4,5,6,7]],
-                        skin = 0.001,
-                        self_interaction=False,
-                        bothways=True)
+    nl = LayerNeighborList(
+        cutoffs=[2.2] * len(atoms),
+        layer_atom_types=[[0, 1, 2, 3], [4, 5, 6, 7]],
+        skin=0.001,
+        self_interaction=False,
+        bothways=True,
+    )
 
     nl.update(atoms)
     for ii in range(len(atoms)):
         neighbors, offsets = nl.get_neighbors(ii)
         print(f"Atom {ii}:, neighbors: {neighbors}")
 
-    lj = LayerLennardJones(epsilon = 0.0103, sigma = 3.405,
-                        layer_atom_types = [[0,1,2,3],[4,5,6,7]],
-                        rc = 10.0
-                        )
+    lj = LayerLennardJones(
+        epsilon=0.0103,
+        sigma=3.405,
+        layer_atom_types=[[0, 1, 2, 3], [4, 5, 6, 7]],
+        rc=10.0,
+    )
     atoms.calc = lj
     print("Atom energy")
     print(atoms.get_potential_energy())
@@ -225,12 +248,15 @@ if __name__ == "__main__":
     print(atoms.get_forces())
 
     # How to loop over many structures and epsilons efficiently
-    structures = read("/pscratch/sd/j/jdgeorga/twist-anything/scf_comparison/scratch/BP/bp_interlayer_dset.xyz", index=":", format='extxyz')
+    structures = read(
+        "/pscratch/sd/j/jdgeorga/twist-anything/scf_comparison/scratch/BP/bp_interlayer_dset.xyz",
+        index=":",
+        format="extxyz",
+    )
 
-    lj = LayerLennardJones(epsilon=0.01, sigma=3.03,
-                           layer_atom_types=[[0, 1, 2, 3],
-                                             [4, 5, 6, 7]],
-                           rc=10.0)
+    lj = LayerLennardJones(
+        epsilon=0.01, sigma=3.03, layer_atom_types=[[0, 1, 2, 3], [4, 5, 6, 7]], rc=10.0
+    )
     epsilon_list = [0.01, 0.02, 0.03]
     sigma_list = [3, 4, 5]
     for epsilon, sigma in zip(epsilon_list, sigma_list):
@@ -239,7 +265,9 @@ if __name__ == "__main__":
 
         for ii in range(len(structures[:10])):
             lj.calculate(structures[ii])
-            print(f"Epsilon: {epsilon}",
-                  f"Sigma: {sigma}",
-                  f"Structure: {ii}",
-                  f"Energy: {np.round(lj.results['energy'],2)} eV")
+            print(
+                f"Epsilon: {epsilon}",
+                f"Sigma: {sigma}",
+                f"Structure: {ii}",
+                f"Energy: {np.round(lj.results['energy'],2)} eV",
+            )
