@@ -138,6 +138,7 @@ def ase_to_phonopy_atoms(ase_atoms):
         scaled_positions=ase_atoms.get_scaled_positions(),
         cell=ase_atoms.cell,
     )
+
     return phonopy_atoms
 
 

@@ -1,33 +1,39 @@
 from ase.calculators.espresso import Espresso
 from ase.io import read, write
 from moirecompare.utils import (ase_to_phonopy_atoms,
-                                phonopy_atoms_to_ase)
+                                phonopy_atoms_to_ase,
+                                replace_line_starting_with)
 from phonopy import Phonopy
 import numpy as np
 import os
 from moirecompare.phonons import freeze_phonons
 
 
-path_to_pseudopotentials = "/global/homes/j/jdgeorga/espresso/pseudo_new/"
+path_to_pseudopotentials = "/home1/08526/jdgeorga/espresso/pseudo_new/"
 binary_path = "/global/common/software/nersc/pm-2021q4/sw/qe/qe-7.0/bin/pw.x"
 # binary_path = "/global/common/software/nersc/pm-2021q4/sw/qe/pm-cpu/qe-7.0/bin"
+binary_path="/global/homes/j/jdgeorga/codes/q-e/bin/pw.x"
 
 
-os.environ["ASE_ESPRESSO_COMMAND"] = "pw.x -in espresso.pwi > espresso.pwo"
+os.environ["ASE_ESPRESSO_COMMAND"] = "/global/homes/j/jdgeorga/codes/q-e/bin/pw.x -in espresso.pwi > espresso.pwo"
 
 
 def run_scf_base(ase_atom, input_data, pseudopotentials):
     print("Running SCF base")
     base_calc = Espresso(
         input_data=input_data,
-        command='srun -N 1 -n 4 pw.x -npool 6 -in scf.pwi > scf.pwo',
+        # command='ibrun -n 56 /global/homes/j/jdgeorga/codes/q-e/bin/pw.x -in scf.pwi > scf.pwo',
         pseudopotentials=pseudopotentials,
         pseudo_dir=path_to_pseudopotentials,
         tstress=False, tprnfor=True, kpts=(6, 6, 1),
         directory='disps/scf_base',
         label='scf')
-    ase_atom.calc = base_calc
-    ase_atom.get_potential_energy()
+    base_calc.write_input(ase_atom)
+    replace_line_starting_with("disps/scf_base/scf.pwi",'   conv_thr         = 1e-10', "   conv_thr         = 1d-10" )
+    # base_calc.read_results()
+    # ase_atom.calc = base_calc
+
+    # ase_atom.get_potential_energy()
     print("Done SCF base")
     return base_calc
 
@@ -63,7 +69,7 @@ def run_scf_displaced(base_calc, ase_disp_list, input_dat, out_dir='disps'):
     print("Running SCF displaced")
     #input_data['electrons'].update({'startingpot': 'file'})
 
-    for i, ase_disp in enumerate(ase_disp_list[5:]):
+    for i, ase_disp in enumerate(ase_disp_list):
 
         print(f"Running SCF displaced {i}")
 
@@ -79,9 +85,50 @@ def run_scf_displaced(base_calc, ase_disp_list, input_dat, out_dir='disps'):
         #os.system(f"cp -p {ref_dir}/charge-density.dat {base_calc.directory}/scf_disp.save/.")
         #os.system(f"cp -p {ref_dir}/data-file-schema.xml {base_calc.directory}/scf_disp.save/.")
 
-        base_calc.calculate(ase_disp)
+        base_calc.write_input(ase_disp)
+        replace_line_starting_with(f"{out_dir}/scf_disp_{i}/scf.pwi",'   conv_thr         = 1e-10', "   conv_thr         = 1d-10" )
+
         print(f"Done SCF displaced {i}")
     return 0
+
+def run_scf_layers(base_calc, ase_disp_list, input_dat, out_dir='disps'):
+    print("Running SCF displaced")
+    #input_data['electrons'].update({'startingpot': 'file'})
+
+    for i, ase_disp in enumerate(ase_disp_list):
+
+        print(f"Running SCF displaced {i}")
+
+        input_data['control'].update({'prefix': 'scf_disp'})
+
+        atomic_pos = ase_disp.positions.copy()
+        print(ase_disp.cell[2,2])
+        atomic_pos[atomic_pos[:,2] > ase_disp.cell[2,2]/2,2] -= ase_disp.cell[2,2]
+        ase_disp.positions = atomic_pos.copy()
+        
+
+        # mid_point = ase_disp.positions[ase_disp.arrays['numbers'] == 42,2].mean()
+        mid_point = ase_disp.positions[:,2].mean()
+        print(mid_point)
+        # Full
+        base_calc.directory = f"{out_dir}/scf_disp_{i}/full"
+        base_calc.write_input(ase_disp)
+        replace_line_starting_with(f"{out_dir}/scf_disp_{i}/full/scf.pwi",'   conv_thr         = 1e-10', "   conv_thr         = 1d-10" )
+
+        # Layer A
+        L1_atom = ase_disp[ase_disp.positions[:,2]< mid_point]
+        base_calc.directory = f"{out_dir}/scf_disp_{i}/L1"
+        base_calc.write_input(L1_atom)
+        replace_line_starting_with(f"{out_dir}/scf_disp_{i}/L1/scf.pwi",'   conv_thr         = 1e-10', "   conv_thr         = 1d-10" )
+        # Layber B
+        L2_atom = ase_disp[ase_disp.positions[:,2] >= mid_point]
+        base_calc.directory = f"{out_dir}/scf_disp_{i}/L2"
+        base_calc.write_input(L2_atom)
+        replace_line_starting_with(f"{out_dir}/scf_disp_{i}/L2/scf.pwi",'   conv_thr         = 1e-10', "   conv_thr         = 1d-10" )
+
+        print(f"Done SCF displaced {i}")
+    return 0
+
 
 
 def calculate_phonons(phonon, ase_disp_list, plot_bandstructure=False, out_dir='disps'):
@@ -102,7 +149,7 @@ def calculate_phonons(phonon, ase_disp_list, plot_bandstructure=False, out_dir='
 
     mesh = [11, 11, 1]
     phonon.run_mesh(mesh, with_eigenvectors=True)
-    phonon.write_hdf5_mesh(filename=f"{out_dir}/mesh.hdf5")
+    phonon.write_hdf5_mesh()
 
     if plot_bandstructure:
 
@@ -151,15 +198,15 @@ def main(ase_atom, input_data, pseudopotentials):
 
     base_calc = run_scf_base(ase_atom, input_data, pseudopotentials)
 
-    phonon, ase_disp_list = get_displacement_atoms(ase_atom)
+    # phonon, ase_disp_list = get_displacement_atoms(ase_atom)
 
-    run_scf_displaced(base_calc, ase_disp_list, input_data, out_dir='disps')
+    # run_scf_displaced(base_calc, ase_disp_list, input_data, out_dir='disps')
 
-    calculate_phonons(phonon, ase_disp_list, plot_bandstructure=True)
+    # calculate_phonons(phonon, ase_disp_list, plot_bandstructure=True)
 
     frozen_atoms_list = freeze_phonons(n_sample=5, supercell_n=3)
 
-    run_scf_displaced(base_calc, frozen_atoms_list, input_data, out_dir='FF')
+    run_scf_layers(base_calc, frozen_atoms_list, input_data, out_dir='FF')
 
 
 # main script
@@ -189,7 +236,7 @@ if __name__ == '__main__':
                     'emaxpos': 0.5
                 },
                 'electrons': {
-                    'conv_thr': 1.0e10,
+                    'conv_thr': 1.0e-10,
                     'electron_maxstep': 1000,
                     'mixing_mode': 'local-TF',
                     'mixing_beta': 0.3,
