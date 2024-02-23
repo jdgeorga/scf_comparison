@@ -8,20 +8,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def prepare_database(structures):
-        clean_database = []
-        for ss in structures:
-            s = ss
-            del s[[3,4,5,9,10,11]]
-            s.positions -= s.positions[np.where(s.arrays['atom_types'] == 0)[0][0]]
-            s.arrays['atom_types'] = np.array([0, 1, 2, 3, 4, 5],dtype=int)
-            clean_database.append(s)
+    clean_database = []
+    for ss in structures:
+        s = ss
+        del s[[3,4,5,9,10,11]]
+        s.positions -= s.positions[np.where(s.arrays['atom_types'] == 0)[0][0]]
+        s.arrays['atom_types'] = np.array([0, 1, 2, 3, 4, 5],dtype=int)
+        clean_database.append(s)
 
-        return clean_database
+    return clean_database
 
-dataset = read("./mos2_interlayer_dset.xyz", index=":")
-# moire_structure = read("relax_546.out", index=-1, format="espresso-out")
-# moire_structure = read("scf_1014.out", index=-1, format="espresso-out")
-moire_structure = read("MoS2-2deg-relax.xsf", format="xsf")
+
+dataset = read("dataset/mos2_interlayer_dset.xyz", index=":")
+# moire_structure = read("structures/relax_546.out", index=-1, format="espresso-out")
+# moire_structure = read("structures/scf_1014.out", index=-1, format="espresso-out")
+moire_structure = read("structures/MoS2-2deg-relax.xsf", format="xsf")
 
 moire_structure.arrays['atom_types'] = add_allegro_number_array(moire_structure)
 
