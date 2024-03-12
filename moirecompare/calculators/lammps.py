@@ -183,15 +183,14 @@ class MonolayerLammpsCalculator(LAMMPSlib):
         print(chemical_symbols)
 
         if self.system_type is None: 
-            print("Specify type of bilayer. Options are 'TMD' or 'graphene'")
+            print("Specify type of bilayer. Options are 'TMD' or 'BP'")
 
         if self.system_type == 'TMD':
             
             cmds = [
                 # LAMMPS commands go here.
-                "pair_style hybrid/overlay sw lj/cut 10.0",
+                "pair_style sw",
                 f"pair_coeff * * sw tmd.sw {chemical_symbols[0]} {chemical_symbols[1]} {chemical_symbols[2]}",
-                "pair_coeff * * lj/cut 0.0 3.0",
                 "neighbor        2.0 bin",
                 "neigh_modify every 1 delay 0 check yes"]
             # Define fixed atom types and masses for the simulation.
@@ -208,6 +207,30 @@ class MonolayerLammpsCalculator(LAMMPSlib):
                                atom_type_masses=fixed_atom_type_masses,
                                log_file='log.txt',
                                keep_alive=True)
+            
+        elif self.system_type == 'BP':
+            # Define LAMMPS commands for the BP system.
+            cmds = [
+                "pair_style sw",
+                # f"pair_coeff * * sw bp.sw {chemical_symbols[0]} {chemical_symbols[1]} {chemical_symbols[2]} {chemical_symbols[3]}",
+                f"pair_coeff * * bp.sw T T B B",
+                "neighbor        2.0 bin",
+                "neigh_modify every 1 delay 0 check yes"]
+            
+            # Define fixed atom types and masses for the simulation.
+            fixed_atom_types = {'H': 1, 'He': 2, 'Li': 3, 'Be': 4}
+            fixed_atom_type_masses = {'H': self.original_masses[0],
+                                        'He': self.original_masses[1],
+                                        'Li': self.original_masses[2],
+                                        'Be': self.original_masses[3]}
+            
+            # Set up the LAMMPS calculator with the specified commands.
+            LAMMPSlib.__init__(self,
+                                 lmpcmds=cmds,
+                                 atom_types=fixed_atom_types,
+                                 atom_type_masses=fixed_atom_type_masses,
+                                 log_file='log.txt',
+                                 keep_alive=True)
         
     def calculate(self, 
                   atoms, 
@@ -221,10 +244,15 @@ class MonolayerLammpsCalculator(LAMMPSlib):
         # self.system_type = system_type
         
         if self.system_type is None: 
-            print("Specify type of bilayer. Options are 'TMD' or 'graphene'")
+            print("Specify type of bilayer. Options are 'TMD' or 'BP'")
 
         if self.system_type == 'TMD':
             atoms.numbers = atoms.arrays["atom_types"] + 1
+            self.propagate(atoms, properties, system_changes, 0)
+
+        elif self.system_type == 'BP':
+            atoms.numbers = atoms.arrays["atom_types"] + 1
+            print(atoms)
             self.propagate(atoms, properties, system_changes, 0)
         
 
