@@ -1,5 +1,8 @@
-#from .allegro import AllegroCalculator
-from .lammps import MonolayerLammpsCalculator, BilayerLammpsCalculator
+from .allegro import AllegroCalculator
+from .lammps import MonolayerLammpsCalculator, BilayerLammpsCalculator,InterlayerLammpsCalculator
 from .qe import QECalculator
 from .layered_lj import LayerLennardJones
-from .fingerprint import BaseFingerprintCalculator, create_moire_grid
+from .bilayer import BilayerCalculator
+#from .fingerprint import BaseFingerprintCalculator, create_moire_grid
+from .fingerprint_atom import BaseFingerprintCalculator, create_moire_grid
+
