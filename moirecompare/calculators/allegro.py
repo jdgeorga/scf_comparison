@@ -19,6 +19,8 @@ from pathlib import Path
 from ase.atoms import Atoms
 from itertools import combinations
 from numpy import zeros, where, array, logical_and
+import numpy as np
+
 
 def get_results_from_model_out(model_out):
     results = {}
@@ -44,6 +46,102 @@ def get_results_from_model_out(model_out):
     return results
 
 class AllegroCalculator(Calculator):
+    # Define the properties that the calculator can handle
+    implemented_properties = ["energy", "energies", "forces", "free_energy"]
+
+    def __init__(self,
+                 atoms,
+                 layer_symbols: list[str],
+                 model_file: str,
+                 device='cpu',
+                 **kwargs):
+        """
+        Initializes the AllegroCalculator with a given set of atoms, layer symbols, model file, and device.
+
+        :param atoms: ASE atoms object.
+        :param layer_symbols: List of symbols representing different layers in the structure.
+        :param model_file: Path to the file containing the trained model.
+        :param device: Device to run the calculations on, default is 'cpu'.
+        :param kwargs: Additional keyword arguments for the base class.
+        """
+        self.atoms = atoms  # ASE atoms object
+        self.atom_types = atoms.arrays['atom_types']  # Extract atom types from atoms object
+        self.device = device  # Device for computations
+
+        # Flatten the layer symbols list
+        self.layer_symbols = [symbol for sublist in layer_symbols for symbol in (sublist if isinstance(sublist, list) else [sublist])]
+
+        # Load the trained model and metadata
+        self.model, self.metadata_dict = load_deployed_model(model_path=model_file)
+        print(self.metadata_dict['n_species'],len(self.layer_symbols))
+        if int(self.metadata_dict['n_species']) != len(self.layer_symbols):
+            raise ValueError("Mismatch between the number of atom types in model and provided layer symbols.",
+                             "Are you using an intralayer or interlayer model?")
+        
+        # Determine unique atom types and their indices
+        unique_types, inverse = np.unique(self.atom_types, return_inverse=True)
+
+        # Map atom types to their relative positions in the unique_types array
+        self.relative_layer_types = inverse
+
+        # Ensure the number of unique atom types matches the number of layer symbols provided
+        if len(unique_types) != len(self.layer_symbols):
+            raise ValueError("Mismatch between the number of atom types and provided layer symbols.")
+
+        # Initialize the base Calculator class with any additional keyword arguments
+        Calculator.__init__(self, **kwargs)
+
+    def calculate(self,
+                  atoms,
+                  properties=None,
+                  system_changes=all_changes):
+        """
+        Performs the calculation for the given atoms and properties.
+
+        :param atoms: ASE atoms object to calculate properties for.
+        :param properties: List of properties to calculate. If None, uses implemented_properties.
+        :param system_changes: List of changes that have been made to the system since last calculation.
+        """
+        # Default to implemented properties if none are specified
+        if properties is None:
+            properties = self.implemented_properties
+
+        # Create a temporary copy of the atoms object
+        tmp_atoms = atoms.copy()[:]
+        tmp_atoms.calc = None  # Remove any attached calculator
+
+        r_max = self.metadata_dict["r_max"]  # Maximum radius for calculations
+
+        # Backup original atomic numbers and set new atomic numbers based on relative layer types
+        original_atom_numbers = tmp_atoms.numbers.copy()
+        tmp_atoms.set_atomic_numbers(self.relative_layer_types + 1)
+        tmp_atoms.arrays['atom_types'] = self.relative_layer_types
+
+        # Prepare atomic data for the model
+        data = AtomicData.from_ase(atoms=tmp_atoms, r_max=r_max, include_keys=[AtomicDataDict.ATOM_TYPE_KEY])
+
+        # Remove energy keys from the data if present
+        for k in AtomicDataDict.ALL_ENERGY_KEYS:
+            if k in data:
+                del data[k]
+
+        # Move data to the specified device and convert to AtomicDataDict format
+        data = data.to(self.device)
+        data = AtomicData.to_AtomicDataDict(data)
+
+        # Pass data through the model to get the output
+        out = self.model(data)
+
+        # Restore the original atomic numbers and types
+        tmp_atoms.set_atomic_numbers(original_atom_numbers)
+        tmp_atoms.arrays['atom_types'] = self.atom_types
+        
+        # Process the model output to get the desired results
+        self.results = get_results_from_model_out(out)
+
+
+# 
+class AllegroCalculator_old(Calculator):
     implemented_properties = ["energy", "energies", "forces", "free_energy"]
 
     def __init__(
@@ -183,33 +281,41 @@ class AllegroCalculator(Calculator):
                     
                     tmp_at = atoms[rel_ats].copy()
                     data = AtomicData.from_ase(
-                        atoms=tmp_at,
-                        r_max=r_max,
-                    )
+                        atoms=tmp_at, r_max=r_max, include_keys=[AtomicDataDict.ATOM_TYPE_KEY]
+                        )
+                    # for k in AtomicDataDict.ALL_ENERGY_KEYS:
+                    #     if k in data:
+                    #         del data[k]
+                    # at_num = data[AtomicDataDict.ATOMIC_NUMBERS_KEY]
+                    # valid_atomic_numbers = [
+                    #     atomic_numbers[sym] for sym in chemical_symbol_to_type
+                    # ]
+                    # _min_Z = min(valid_atomic_numbers)
+                    # _max_Z = max(valid_atomic_numbers)
+                    # Z_to_index = full(
+                    #     size=(1 + _max_Z - _min_Z,),
+                    #     fill_value=-1,
+                    #     dtype=long,
+                    # )
+                    # for sym, typeid in chemical_symbol_to_type.items():
+                    #     Z_to_index[atomic_numbers[sym] - _min_Z] = typeid
+                    # del data[AtomicDataDict.ATOMIC_NUMBERS_KEY]
+                    # data[AtomicDataDict.ATOM_TYPE_KEY] = Z_to_index.to(
+                    #     device=self.device
+                    # )[at_num - _min_Z]
+
                     for k in AtomicDataDict.ALL_ENERGY_KEYS:
                         if k in data:
                             del data[k]
-                    at_num = data[AtomicDataDict.ATOMIC_NUMBERS_KEY]
-                    valid_atomic_numbers = [
-                        atomic_numbers[sym] for sym in chemical_symbol_to_type
-                    ]
-                    _min_Z = min(valid_atomic_numbers)
-                    _max_Z = max(valid_atomic_numbers)
-                    Z_to_index = full(
-                        size=(1 + _max_Z - _min_Z,),
-                        fill_value=-1,
-                        dtype=long,
-                    )
-                    for sym, typeid in chemical_symbol_to_type.items():
-                        Z_to_index[atomic_numbers[sym] - _min_Z] = typeid
-                    del data[AtomicDataDict.ATOMIC_NUMBERS_KEY]
-                    data[AtomicDataDict.ATOM_TYPE_KEY] = Z_to_index.to(
-                        device=self.device
-                    )[at_num - _min_Z]
+
+                    
                     data = data.to(self.device)
                     data = AtomicData.to_AtomicDataDict(data)
+                    # print("ALLEGRO_OG",data)
                     out = model(data)
                     results = get_results_from_model_out(out)
+                    print("Old", results)
+
 
                     
                     if l_id == 0:
@@ -262,6 +368,7 @@ class AllegroCalculator(Calculator):
                             del data[k]
                     data = data.to(self.device)
                     data = AtomicData.to_AtomicDataDict(data)
+                    # print("OG_INTERLAYERDATA",data)
                     out = model(data)
                     
                     results = get_results_from_model_out(out)
@@ -282,30 +389,3 @@ class AllegroCalculator(Calculator):
         self.results["L2_forces"] = L2_forces
         self.results["IL_energy"] = IL_energy
         self.results["IL_forces"] = IL_forces
-
-
-# if __name__ == "__main__":
-#     # from ase.io import read
-
-#     # calc = NeuqIPMultiLayerCalculator(4, ["MoL1", "SL1", "SeL1", "MoL2", "SL2", "SeL2"])
-#     # calc.setup_models(
-#     #     2,
-#     #     [Path("./intralayer.pth"), Path("./intralayer.pth")],
-#     #     [Path("./interlayer.pth")],
-#     # )
-#     # at = read("./MoS2-Bilayer.xyz")
-#     # calc.calculate(at)
-
-# Example Usage:
-# calc = AllegroCalculator(4, 
-#                          ["MoL1", "SL1", "SeL1", "MoL2", "SL2", "SeL2"],
-#                          device='cpu')
-# calc.setup_models(
-#     2,
-#     [Path("./intralayer_beefy.pth"), Path("./intralayer_beefy.pth")],
-#     [Path("./interlayer_beefy_truncated.pth")],
-# )
-# at = read("./MoS2-Bilayer.xyz")
-# at.calc = calc
-# at.calc.calculate(at)
-# print(at.calc.results)

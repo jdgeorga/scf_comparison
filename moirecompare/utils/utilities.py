@@ -205,3 +205,25 @@ def rotate_to_x_axis(atoms):
         atoms.rotate(v=axis, a=np.degrees(angle), rotate_cell=True)
 
     return atoms
+
+
+from ase.io import write
+from ase.io.trajectory import Trajectory
+
+def traj_to_xyz(traj_path, xyz_path):
+    """
+    Convert a trajectory file to an extended XYZ file.
+
+    Parameters:
+    traj_path (str): Path to the input trajectory (.traj) file.
+    xyz_path (str): Path for the output extended XYZ (.xyz) file.
+    """
+    traj = Trajectory(traj_path)
+    images = [frame for frame in traj]
+
+    write(xyz_path, images, format="extxyz")
+
+    # # Example usage:
+    # traj_path = "./nlayer_BP_relax.traj"
+    # xyz_path = "nlayer_BP_traj.xyz"
+    # traj_to_xyz(traj_path, xyz_path)
