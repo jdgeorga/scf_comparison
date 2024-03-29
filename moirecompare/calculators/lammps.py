@@ -142,7 +142,6 @@ class InterlayerLammpsCalculator(LAMMPSlib):
         self.original_chemical_symbols = atoms.get_chemical_symbols()
         self.original_masses = [[atomic_masses[atomic_numbers[n]] for n in t] for t in self.layer_symbols]
         self.atom_types = atoms.arrays['atom_types']
-        print(self.original_masses)
 
         # Get unique types and their indices in the sorted order
         unique_types, inverse = np.unique(self.atom_types, return_inverse=True)
