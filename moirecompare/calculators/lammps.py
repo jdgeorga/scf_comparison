@@ -15,14 +15,14 @@ import numpy as np
 class MonolayerLammpsCalculator(LAMMPSlib):
     implemented_properties = ["energy", "energies", "forces"]
 
-    def __init__(self, atoms, layer_symbols, system_type='TMD'):
+    def __init__(self, atoms, layer_symbols, system_type='TMD', intra_potential='tmd.sw'):
 
         self.system_type = system_type
         self.layer_symbols = layer_symbols
         self.original_masses = [atomic_masses[m] for m in [atomic_numbers[c] for c in self.layer_symbols]]
         self.original_chemical_symbols = atoms.get_chemical_symbols()
         self.atom_types = atoms.arrays['atom_types']
-        
+        self.intra_potential = intra_potential
 
         # Get unique types and their indices in the sorted order
         unique_types, inverse = np.unique(self.atom_types, return_inverse=True)
@@ -42,7 +42,7 @@ class MonolayerLammpsCalculator(LAMMPSlib):
             cmds = [
                 # LAMMPS commands go here.
                 "pair_style sw",
-                f"pair_coeff * * sw tmd.sw {self.layer_symbols[0]} {self.layer_symbols[1]} {self.layer_symbols[2]}",
+                f"pair_coeff * * {self.intra_potential} {self.layer_symbols[0]} {self.layer_symbols[1]} {self.layer_symbols[2]}",
                 "neighbor        2.0 bin",
                 "neigh_modify every 1 delay 0 check yes"]
             # Define fixed atom types and masses for the simulation.
@@ -64,7 +64,7 @@ class MonolayerLammpsCalculator(LAMMPSlib):
             # Define LAMMPS commands for the BP system.
             cmds = [
                 "pair_style sw",
-                f"pair_coeff * * bp.sw T T B B",
+                f"pair_coeff * * {self.intra_potential} T T B B",
                 "neighbor        2.0 bin",
                 "neigh_modify every 1 delay 0 check yes"]
             
@@ -142,6 +142,7 @@ class InterlayerLammpsCalculator(LAMMPSlib):
         self.original_chemical_symbols = atoms.get_chemical_symbols()
         self.original_masses = [[atomic_masses[atomic_numbers[n]] for n in t] for t in self.layer_symbols]
         self.atom_types = atoms.arrays['atom_types']
+        print(self.original_masses)
 
         # Get unique types and their indices in the sorted order
         unique_types, inverse = np.unique(self.atom_types, return_inverse=True)
@@ -171,12 +172,12 @@ class InterlayerLammpsCalculator(LAMMPSlib):
             # Define fixed atom types and masses for the simulation.
 
             fixed_atom_types = {'H': 1, 'He': 2, 'Li': 3, 'Be': 4, 'B': 5, 'C': 6}
-            fixed_atom_type_masses = {'H': self.original_masses[0],
-                                      'He': self.original_masses[1],
-                                      'Li': self.original_masses[2],
-                                      'Be': self.original_masses[3],
-                                      'B': self.original_masses[4],
-                                      'C': self.original_masses[5]} 
+            fixed_atom_type_masses = {'H': self.original_masses[0][0],
+                                      'He': self.original_masses[0][1],
+                                      'Li': self.original_masses[0][2],
+                                      'Be': self.original_masses[1][0],
+                                      'B': self.original_masses[1][1],
+                                      'C': self.original_masses[1][2]} 
             # Set up the LAMMPS calculator with the specified commands.
 
             LAMMPSlib.__init__(self,
@@ -485,7 +486,7 @@ class BilayerLammpsCalculator(LAMMPSlib):
         self.chemical_symbols = chemical_symbols
 
         self.original_masses = [[atomic_masses[atomic_numbers[n]] for n in t] for t in self.chemical_symbols]
-
+        
         if self.system_type is None: 
             print("Specify type of bilayer. Options are 'TMD' or 'graphene'")
 
@@ -506,12 +507,12 @@ class BilayerLammpsCalculator(LAMMPSlib):
             # Define fixed atom types and masses for the simulation.
 
             fixed_atom_types = {'H': 1, 'He': 2, 'Li': 3, 'Be': 4, 'B': 5, 'C': 6}
-            fixed_atom_type_masses = {'H': self.original_masses[0],
-                                      'He': self.original_masses[1],
-                                      'Li': self.original_masses[2],
-                                      'Be': self.original_masses[3],
-                                      'B': self.original_masses[4],
-                                      'C': self.original_masses[5]} 
+            fixed_atom_type_masses = {'H': self.original_masses[0][0],
+                                      'He': self.original_masses[0][1],
+                                      'Li': self.original_masses[0][2],
+                                      'Be': self.original_masses[1][0],
+                                      'B': self.original_masses[1][1],
+                                      'C': self.original_masses[1][2]} 
             # Set up the LAMMPS calculator with the specified commands.
 
             LAMMPSlib.__init__(self,
@@ -570,7 +571,7 @@ class BilayerLammpsCalculator(LAMMPSlib):
         if self.system_type == 'TMD':
             atoms.numbers = atoms.arrays["atom_types"] + 1
             self.propagate(atoms, properties, system_changes, 0)
-            self.tmd_calculate_intralayer(atoms)
+            self.calculate_intralayer(atoms)
             self.calculate_interlayer(atoms)
             atoms.set_chemical_symbols(self.original_atom_types)
 
@@ -598,7 +599,7 @@ class BilayerLammpsCalculator(LAMMPSlib):
         atom_L1.numbers = atom_L1.arrays["atom_types"] + 1
 
         lammps_L1 = MonolayerLammpsCalculator(atom_L1,
-                                              chemical_symbols=self.chemical_symbols[0],
+                                              layer_symbols=self.chemical_symbols[0],
                                               system_type=self.system_type)
         atom_L1.calc = lammps_L1
         L1_energy = atom_L1.get_potential_energy()
@@ -614,7 +615,7 @@ class BilayerLammpsCalculator(LAMMPSlib):
         atom_L2.arrays['atom_types'] -= len(self.chemical_symbols[0])
 
         lammps_L2 = MonolayerLammpsCalculator(atom_L2,
-                                              chemical_symbols=self.chemical_symbols[1],
+                                              layer_symbols=self.chemical_symbols[1],
                                               system_type=self.system_type)
         atom_L2.calc = lammps_L2
         L2_energy = atom_L2.get_potential_energy()
@@ -633,10 +634,30 @@ class BilayerLammpsCalculator(LAMMPSlib):
         tmp_atoms.numbers = tmp_atoms.arrays["atom_types"] + 1
 
         lammps_calc = InterlayerLammpsCalculator(atoms,
-                                                 chemical_symbols=self.chemical_symbols,
+                                                 layer_symbols=self.chemical_symbols,
                                                  system_type=self.system_type)   
         tmp_atoms.calc = lammps_calc
 
         self.results['IL_energy'] = tmp_atoms.get_potential_energy()
         self.results['IL_forces'] = tmp_atoms.calc.results['forces']
         self.results['IL_stress'] = tmp_atoms.calc.results['stress']
+
+    def minimize(self, atoms, method="fire", file = 'relax.lammps.traj.xyz'):
+        min_cmds = [# Create a dump file for the trajectories
+                    f"dump mydump all xyz 1 {file}",
+                    f"min_style       {method}",
+                    f"minimize       0 1.0e-6 1320 1320",
+                    "write_data      lammps.dat_min",
+                    "undump mydump"]
+
+        self.set(amendments=min_cmds)
+        atoms.numbers = atoms.arrays["atom_types"] + 1
+        self.propagate(atoms,
+                       properties=["energy",
+                                   'forces',
+                                   'stress'],
+                       system_changes=["positions"],
+                       n_steps=1)
+        self.calculate_intralayer(atoms)
+        self.calculate_interlayer(atoms)
+        atoms.set_chemical_symbols(self.original_atom_types)

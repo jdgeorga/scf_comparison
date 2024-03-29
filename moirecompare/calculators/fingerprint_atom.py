@@ -96,6 +96,98 @@ def create_moire_grid(moire_atoms, n, padding_factor=0.0):
 
     return grid, moire_grid_atoms
 
+def create_atom_centered_moire_grid(moire_atoms, n, padding_factor=0.0):
+    """
+    Subdivides a moiré structure into an n x n grid of atom objects.
+
+    Parameters:
+    - moire_atoms: The atoms object representing the moiré structure.
+    - n: The number of subdivisions along one axis.
+    - padding_factor: The amount of padding to add to the grid cell.
+                      1.0 adds an additional grid cell to each side 
+                      of the grid cell.
+
+    Returns:
+    - grid: A 2D array representing the grid points.
+    - moire_grid_atoms: A 2D array of atoms objects for each grid cell.
+    """
+    # Store the original moiré cell
+    original_cell = moire_atoms.cell
+
+    # Repeat the atoms to ensure full coverage for edge cases
+    moire_atoms = moire_atoms.repeat((3, 3, 1))
+
+    # Restore the original cell size to keep physical dimensions consistent
+    moire_atoms.set_cell(original_cell)
+
+    # Calculate the shift needed for moiré pattern
+    moire_shift = moire_atoms.cell[0] + moire_atoms.cell[1]
+    moire_atoms.positions[:, :2] -= moire_shift[:2]
+
+    # Create grid points within the moiré cell
+    x = (np.linspace(0, 1, n + 1) - 1 / (2 * n))[:, None] * moire_atoms.cell[0]
+    y = (np.linspace(0, 1, n + 1) - 1 / (2 * n))[:, None] * moire_atoms.cell[1]
+
+    # Define the size of each grid cell
+    grid_cell = moire_atoms.cell / np.array([n, n, 1])
+
+    # Combine x and y to form a 2D grid
+    grid = x[:, None, :2] + y[None, :, :2]
+
+    # Transform the grid points to the moiré coordinates
+    moire_grid = grid @ np.linalg.inv(grid_cell[:2, :2])
+
+    # Initialize a list to hold the atoms objects for each grid cell
+    moire_grid_atoms = []
+
+    # Count the unique types of atoms in the moiré structure
+    n_unique_atom_types = len(np.unique(moire_atoms.arrays['atom_types']))
+
+    # Iterate over the grid to populate it with atoms objects
+    for i in range(n):
+        grid_atoms_row = []
+        for j in range(n):
+            # Copy the moiré atoms to manipulate them for each grid cell
+            m_ij = moire_atoms.copy()
+
+            # Define the corners of the current grid cell in moiré coordinates
+            x0y0 = moire_grid[i, j].copy()
+            x1y1 = moire_grid[i + 1, j + 1].copy()
+
+            # Apply padding to the grid cell
+            dxy = np.array(x1y1 - x0y0)
+            x0y0 -= dxy * padding_factor
+            x1y1 += dxy * padding_factor
+
+            # Get the positions of atoms in the current moiré atoms object
+            m_ij_pos = m_ij.get_positions()
+            m_ij_pos_scaled = m_ij_pos[:, :2] @ np.linalg.inv(grid_cell[:2, :2])
+
+            # Filter atoms to include only those within the current grid cell
+            m_ij = m_ij[np.logical_and(m_ij_pos_scaled[:, 0] < x1y1[0],
+                                       m_ij_pos_scaled[:, 0] > x0y0[0])]
+
+            # Update positions after filtering
+            m_ij_pos_scaled = m_ij_pos_scaled[np.logical_and(m_ij_pos_scaled[:, 0] < x1y1[0],
+                                                             m_ij_pos_scaled[:, 0] > x0y0[0])]
+
+            # Repeat filtering for the y dimension
+            m_ij = m_ij[np.logical_and(m_ij_pos_scaled[:, 1] < x1y1[1],
+                                       m_ij_pos_scaled[:, 1] > x0y0[1])]
+
+            # Check if the filtered atoms contain all unique atom types
+            if len(np.unique(m_ij.arrays['atom_types'])) != n_unique_atom_types:
+                print(f"WARNING: Grid cell ({i}, {j}) contains {len(np.unique(m_ij.arrays['atom_types']))} unique atom types")
+                return None
+
+            # Append the filtered atoms object to the current row
+            grid_atoms_row.append(m_ij)
+
+        # Append the current row to the moire_grid_atoms
+        moire_grid_atoms.append(grid_atoms_row)
+
+    return grid, moire_grid_atoms
+
 
 class BaseFingerprintCalculator(Calculator):
     implemented_properties = ['energy', 'energies', 'forces']  # Define the properties this calculator can compute

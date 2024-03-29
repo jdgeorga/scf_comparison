@@ -72,11 +72,11 @@ class AllegroCalculator(Calculator):
         self.layer_symbols = [symbol for sublist in layer_symbols for symbol in (sublist if isinstance(sublist, list) else [sublist])]
 
         # Load the trained model and metadata
-        self.model, self.metadata_dict = load_deployed_model(model_path=model_file)
-        print(self.metadata_dict['n_species'],len(self.layer_symbols))
-        if int(self.metadata_dict['n_species']) != len(self.layer_symbols):
-            raise ValueError("Mismatch between the number of atom types in model and provided layer symbols.",
-                             "Are you using an intralayer or interlayer model?")
+        self.model, self.metadata_dict = load_deployed_model(model_path=model_file, device=device)
+        # print(self.metadata_dict['n_species'],len(self.layer_symbols))
+        # if int(self.metadata_dict['n_species']) != len(self.layer_symbols):
+        #     raise ValueError("Mismatch between the number of atom types in model and provided layer symbols.",
+        #                      "Are you using an intralayer or interlayer model?")
         
         # Determine unique atom types and their indices
         unique_types, inverse = np.unique(self.atom_types, return_inverse=True)
