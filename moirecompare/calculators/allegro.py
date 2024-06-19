@@ -1,4 +1,3 @@
-from ase.calculators.singlepoint import SinglePointCalculator
 from ase.calculators.calculator import (
     Calculator,
     CalculatorError,
@@ -8,18 +7,19 @@ from ase.calculators.calculator import (
 from ase.data import atomic_masses, atomic_numbers, chemical_symbols
 from nequip.scripts.deploy import load_deployed_model, R_MAX_KEY
 from nequip.data import AtomicData, AtomicDataDict
-from nequip.data.transforms import TypeMapper
-from warnings import warn
-from typing import List, Dict, Union, Tuple, Optional
-from re import compile, match, Pattern, Match
+from typing import List, Dict, Union, Tuple
+from re import compile, Pattern, Match
 from torch.jit import ScriptModule
-from torch import full, long
+from torch import long
 import torch
 from pathlib import Path
 from ase.atoms import Atoms
 from itertools import combinations
 from numpy import zeros, where, array, logical_and
 import numpy as np
+
+
+torch.manual_seed(42)
 
 
 def get_results_from_model_out(model_out):
@@ -78,6 +78,111 @@ class AllegroCalculator(Calculator):
         #     raise ValueError("Mismatch between the number of atom types in model and provided layer symbols.",
         #                      "Are you using an intralayer or interlayer model?")
         
+        # Determine unique atom types and their indices
+        unique_types, inverse = np.unique(self.atom_types, return_inverse=True)
+
+        # Map atom types to their relative positions in the unique_types array
+        self.relative_layer_types = inverse
+
+        # Ensure the number of unique atom types matches the number of layer symbols provided
+        if len(unique_types) != len(self.layer_symbols):
+            raise ValueError("Mismatch between the number of atom types and provided layer symbols.")
+
+        # Initialize the base Calculator class with any additional keyword arguments
+        Calculator.__init__(self, **kwargs)
+
+    def calculate(self,
+                  atoms,
+                  properties=None,
+                  system_changes=all_changes):
+        """
+        Performs the calculation for the given atoms and properties.
+
+        :param atoms: ASE atoms object to calculate properties for.
+        :param properties: List of properties to calculate. If None, uses implemented_properties.
+        :param system_changes: List of changes that have been made to the system since last calculation.
+        """
+        # Default to implemented properties if none are specified
+        if properties is None:
+            properties = self.implemented_properties
+
+        # Create a temporary copy of the atoms object
+        tmp_atoms = atoms.copy()[:]
+        tmp_atoms.calc = None  # Remove any attached calculator
+
+        r_max = self.metadata_dict["r_max"]  # Maximum radius for calculations
+
+        # Backup original atomic numbers and set new atomic numbers based on relative layer types
+        original_atom_numbers = tmp_atoms.numbers.copy()
+        tmp_atoms.set_atomic_numbers(self.relative_layer_types + 1)
+        tmp_atoms.arrays['atom_types'] = self.relative_layer_types
+
+        # Prepare atomic data for the model
+        data = AtomicData.from_ase(atoms=tmp_atoms, r_max=r_max, include_keys=[AtomicDataDict.ATOM_TYPE_KEY])
+
+        # Remove energy keys from the data if present
+        for k in AtomicDataDict.ALL_ENERGY_KEYS:
+            if k in data:
+                del data[k]
+
+        # Move data to the specified device and convert to AtomicDataDict format
+        data = data.to(self.device)
+        data = AtomicData.to_AtomicDataDict(data)
+
+        # Pass data through the model to get the output
+        out = self.model(data)
+
+        # Restore the original atomic numbers and types
+        tmp_atoms.set_atomic_numbers(original_atom_numbers)
+        tmp_atoms.arrays['atom_types'] = self.atom_types
+        
+        # Process the model output to get the desired results
+        self.results = get_results_from_model_out(out)
+
+class AllegroCalculatorCorrupt(Calculator):
+    # Define the properties that the calculator can handle
+    implemented_properties = ["energy", "energies", "forces", "free_energy"]
+
+    def __init__(self,
+                 atoms,
+                 layer_symbols: list[str],
+                 model_file: str,
+                 model_corrpution_fac: float,
+                 device='cpu',
+                 **kwargs):
+        """
+        Initializes the AllegroCalculator with a given set of atoms, layer symbols, model file, and device.
+
+        :param atoms: ASE atoms object.
+        :param layer_symbols: List of symbols representing different layers in the structure.
+        :param model_file: Path to the file containing the trained model.
+        :param model_corrpution_fac: Factor to corrupt the model weights. 5e-2 is "properly corrupted"; anything greater is nonsense AR
+        :param device: Device to run the calculations on, default is 'cpu'.
+        :param kwargs: Additional keyword arguments for the base class.
+        """
+        self.atoms = atoms  # ASE atoms object
+        self.atom_types = atoms.arrays['atom_types']  # Extract atom types from atoms object
+        self.model_corrpution_fac = model_corrpution_fac # Device for computations
+        self.device = device  # Device for computations
+
+
+        # Flatten the layer symbols list
+        self.layer_symbols = [symbol for sublist in layer_symbols for symbol in (sublist if isinstance(sublist, list) else [sublist])]
+
+        # Load the trained model and metadata
+        self.model, self.metadata_dict = load_deployed_model(model_path=model_file, device=self.device, freeze = False)
+        # print(self.metadata_dict['n_species'],len(self.layer_symbols))
+        # if int(self.metadata_dict['n_species']) != len(self.layer_symbols):
+        #     raise ValueError("Mismatch between the number of atom types in model and provided layer symbols.",
+        #                      "Are you using an intralayer or interlayer model?")
+        
+        for param in self.model.parameters():
+            param_std = torch.std(param)
+            noise_weights = self.model_corrpution_fac * torch.normal(
+                0.0, param_std.item(), param.shape, device=self.device
+            )
+            param.data = param + noise_weights
+
         # Determine unique atom types and their indices
         unique_types, inverse = np.unique(self.atom_types, return_inverse=True)
 

@@ -6,7 +6,6 @@ This module contains utility functions used across the package.
 
 import numpy as np
 from ase import Atoms
-from sklearn.cluster import DBSCAN
 
 
 def calculate_xy_area(atoms: Atoms) -> float:
@@ -69,6 +68,9 @@ def add_allegro_number_array(ase_atom: Atoms, eps: float = .75, min_samples: int
     :param min_samples: The number of samples in a neighborhood for a point to be considered as a core point.
     :return: A numpy array with assigned cluster numbers for each atom.
     """
+
+    from sklearn.cluster import DBSCAN
+
     z_coords = ase_atom.positions[:, 2].reshape(-1, 1)
     db = DBSCAN(eps=eps, min_samples=min_samples).fit(z_coords)
     labels = db.labels_

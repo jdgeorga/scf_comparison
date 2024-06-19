@@ -57,13 +57,13 @@ class MonolayerLammpsCalculator(LAMMPSlib):
                                lmpcmds=cmds,
                                atom_types=fixed_atom_types,
                                atom_type_masses=fixed_atom_type_masses,
-                               log_file='log.txt',
+                            #    log_file='log.txt',
                                keep_alive=True)
             
         elif self.system_type == 'BP':
             # Define LAMMPS commands for the BP system.
             cmds = [
-                "pair_style sw",
+                "pair_style sw/mod maxdelcs 0.25 0.35",
                 f"pair_coeff * * {self.intra_potential} T T B B",
                 "neighbor        2.0 bin",
                 "neigh_modify every 1 delay 0 check yes"]
@@ -80,7 +80,7 @@ class MonolayerLammpsCalculator(LAMMPSlib):
                                  lmpcmds=cmds,
                                  atom_types=fixed_atom_types,
                                  atom_type_masses=fixed_atom_type_masses,
-                                 log_file='log_ML.txt',
+                                #  log_file='log_ML.txt',
                                  keep_alive=True)
     
     def calculate(self, 
@@ -210,7 +210,7 @@ class InterlayerLammpsCalculator(LAMMPSlib):
                                lmpcmds=cmds,
                                atom_types=fixed_atom_types,
                                atom_type_masses=fixed_atom_type_masses,
-                               log_file='log_IL.txt',
+                            #    log_file='log_IL.txt',
                                keep_alive=True)
         
     def calculate(self,
@@ -303,7 +303,7 @@ class BilayerLammpsCalculator_old(LAMMPSlib):
                                lmpcmds=cmds,
                                atom_types=fixed_atom_types,
                                atom_type_masses=fixed_atom_type_masses,
-                               log_file='log_IL.txt',
+                            #    log_file='log_IL.txt',
                                keep_alive=True)
         
     def calculate(self,
@@ -392,7 +392,7 @@ class BilayerLammpsCalculator_old(LAMMPSlib):
         lammps_L1 = LAMMPSlib(lmpcmds=cmds,
                               atom_types=atom_types,
                               atom_type_masses=atom_type_masses,
-                              log_file='log_L1.txt',
+                            #   log_file='log_L1.txt',
                               keep_alive = False)
         atom_L1.calc = lammps_L1
         L1_energy = atom_L1.get_potential_energy()
@@ -422,7 +422,8 @@ class BilayerLammpsCalculator_old(LAMMPSlib):
         lammps_L2 = LAMMPSlib(lmpcmds=cmds,
                               atom_types=atom_types,
                               atom_type_masses=atom_type_masses,
-                              log_file='log_L2.txt')
+                            #   log_file='log_L2.txt'
+                              )
         atom_L2.calc = lammps_L2
         
         L2_energy = atom_L2.get_potential_energy()
@@ -548,7 +549,7 @@ class BilayerLammpsCalculator(LAMMPSlib):
                                lmpcmds=cmds,
                                atom_types=fixed_atom_types,
                                atom_type_masses=fixed_atom_type_masses,
-                               log_file='log_IL.txt',
+                            #    log_file='log_IL.txt',
                                keep_alive=True)
         
     def calculate(self,
