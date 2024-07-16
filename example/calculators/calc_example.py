@@ -1,45 +1,85 @@
-from ase.io import read
-from pathlib import Path
-from moirecompare.calculators import AllegroCalculator
-from moirecompare.calculators import BilayerLammpsCalculator
-from ase.calculators.lammpslib import LAMMPSlib
-from moirecompare.calculators import QECalculator
-from ase.optimize import FIRE
+from ase.io import read, write  # Import read and write functions from ASE for handling atomic structures
+import numpy as np  # Import numpy for numerical operations
+from moirecompare.calculators import AllegroCalculator, NLayerCalculator  # Import custom calculators from moirecompare package
+from ase.optimize import FIRE, BFGS  # Import optimization algorithms from ASE
 
+def allegro_relax(input_file, output_file):
+    """
+    Function to relax a given atomic structure using Allegro and NLayer calculators.
+    
+    Parameters:
+    input_file (str): Path to the input structure file in extxyz format.
+    output_file (str): Prefix for the output files to store relaxed structure and trajectory.
+    """
+    # Read the input atomic structure
+    atoms = read(input_file, format="extxyz")
 
-xyz_file_path = "MoS2-Bilayer.xyz"
+    # Split the atoms into two groups based on atom types
+    at_1 = atoms[atoms.arrays['atom_types'] < 3]
+    at_2 = atoms[atoms.arrays['atom_types'] >= 3]
 
-at = read(xyz_file_path)
+    # Define paths to the machine learning models
+    intralayer_MoS2_model = "intralayer_beefy.pth"
+    interlayer_MoS2_model = "interlayer_beefy_truncated.pth"
 
-calc = AllegroCalculator(4, 
-                         ["MoL1", "SL1", "SeL1", "MoL2", "SL2", "SeL2"],
-                         intralayer_symbol_type={"Mo": 0, "S": 1},
-                         device='cpu')
-calc.setup_models(
-    2,
-    [Path("./intralayer_beefy.pth"), Path("./intralayer_beefy.pth")],
-    [Path("./interlayer_beefy_truncated.pth")],
-)
-at = read("./MoS2-Bilayer.xyz")
-at.calc = calc
-at.calc.calculate(at)
-print(at.calc.results)
+    # Define atomic symbols for each layer
+    layer_symbols = [["Mo", "S", "S"],
+                     ["Mo", "S", "S"]]
 
-dyn = FIRE(at)
-dyn.run(fmax=0.01)
-print(at.positions)
+    # Set up intralayer calculators for each group of atoms
+    intra_calc_1 = AllegroCalculator(at_1,
+                                     layer_symbols[0],
+                                     model_file=intralayer_MoS2_model,
+                                     device='cpu') # change to 'cuda' if GPU is available
+    intra_calc_2 = AllegroCalculator(at_2,
+                                     layer_symbols[1],
+                                     model_file=intralayer_MoS2_model,
+                                     device='cpu') # change to 'cuda' if GPU is available
 
+    # Set up interlayer calculator for the combined structure
+    inter_calc = AllegroCalculator(atoms,
+                                   layer_symbols,
+                                   model_file=interlayer_MoS2_model,
+                                   device='cpu') # change to 'cuda' if GPU is available
 
-# # Example usage of LammpsCalculator
+    # Combine the intra- and interlayer calculators into an NLayerCalculator
+    n_layer_calc = NLayerCalculator(atoms,
+                                    [intra_calc_1, intra_calc_2],
+                                    [inter_calc],
+                                    layer_symbols,
+                                    device='cpu') # change to 'cuda' if GPU is available
 
-# # Create an instance of LammpsCalculator
-# calc = BilayerLammpsCalculator(at, chemical_symbols= ['Mo','S','S',
-#                                                       'Mo','S','S'],
-#                                                       system_type='TMD')
-# at.calc = calc
-# at.calc.calculate(at)
-# print("LAMMPS", at.calc.results)
+    # Assign the combined calculator to the atoms object
+    atoms.calc = n_layer_calc
 
-# at.calc = QECalculator("scf_total.out", "scf_L1.out", "scf_L2.out")
-# at.calc.calculate(at)
-# print("QE", at.calc.results)
+    # Perform an initial calculation to get unrelaxed energy
+    atoms.calc.calculate(atoms)
+    print(f"Unrelaxed: Total_energy {atoms.calc.results['energy']:.3f} eV, \n",
+          f"layer_energy {atoms.calc.results['layer_energy']}")
+
+    # Set up the FIRE optimizer for structural relaxation
+    dyn = FIRE(atoms, trajectory=f"{output_file}.traj")
+    dyn.run(fmax=4e-3)  # Run until the maximum force is below 4e-3 eV/Å
+
+    # Print the relaxed energy
+    print(f"Relaxed: Total_energy {atoms.calc.results['energy']:.3f} eV, \n",
+          f"layer_energy {atoms.calc.results['layer_energy']}")
+
+    # Import additional ASE modules for handling trajectories
+    from ase.io.trajectory import Trajectory
+
+    # Read the trajectory file generated during relaxation
+    traj_path = f"{output_file}.traj"
+    traj = Trajectory(traj_path)
+    images = [atom for atom in traj]  # Collect all images from the trajectory
+
+    # Write the final relaxed structure to an output file in extxyz format
+    write(f"{output_file}.traj.xyz", images, format="extxyz")
+
+if __name__ == "__main__":
+    # Define the input XYZ file and output file prefix
+    xyz_file_path = "MoS2-Bilayer.xyz"
+    out_file = 'MoS2-Bilayer_allegro'
+
+    # Call the relaxation function with specified input and output paths
+    allegro_relax(xyz_file_path, out_file)
