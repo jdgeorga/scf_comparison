@@ -41,7 +41,7 @@ class MonolayerLammpsCalculator(LAMMPSlib):
             
             cmds = [
                 # LAMMPS commands go here.
-                "pair_style sw",
+                "pair_style sw/mod",
                 f"pair_coeff * * {self.intra_potential} {self.layer_symbols[0]} {self.layer_symbols[1]} {self.layer_symbols[2]}",
                 "neighbor        2.0 bin",
                 "neigh_modify every 1 delay 0 check yes"]

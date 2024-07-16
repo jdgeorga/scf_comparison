@@ -147,7 +147,7 @@ class AllegroCalculatorCorrupt(Calculator):
                  atoms,
                  layer_symbols: list[str],
                  model_file: str,
-                 model_corrpution_fac: float,
+                 model_corrpution_fac: float = 0.0,
                  device='cpu',
                  **kwargs):
         """
@@ -162,7 +162,7 @@ class AllegroCalculatorCorrupt(Calculator):
         """
         self.atoms = atoms  # ASE atoms object
         self.atom_types = atoms.arrays['atom_types']  # Extract atom types from atoms object
-        self.model_corrpution_fac = model_corrpution_fac # Device for computations
+        self.model_corrpution_fac = model_corrpution_fac # 
         self.device = device  # Device for computations
 
 

@@ -84,6 +84,8 @@ def add_allegro_number_array(ase_atom: Atoms, eps: float = .75, min_samples: int
 
 
     label_mapping = np.array([1, 2, 0, 4, 5, 3])
+    # label_mapping = np.array([1, 2, 0, 4, 5, 3])
+
     # print(labels[:6],sorted_indices,sorted_indices[label_mapping])
 
     allegro_number_array = np.array([sorted_indices[label_mapping][label] if label != -1 else -1 for label in labels])

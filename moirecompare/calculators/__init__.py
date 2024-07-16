@@ -1,4 +1,4 @@
-from .allegro import (AllegroCalculator)
+from .allegro import (AllegroCalculator,AllegroCalculatorCorrupt)
 from .lammps import (MonolayerLammpsCalculator,
                      BilayerLammpsCalculator,
                      InterlayerLammpsCalculator)
