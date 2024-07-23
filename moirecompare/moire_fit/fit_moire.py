@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 from moirecompare.utils import add_allegro_number_array
 from ase import Atoms
 from scipy.spatial import cKDTree
-import pymoire as pm
 import argparse
 
 
@@ -176,6 +175,8 @@ def main(structures_path, moire_path, layer1, layer2, atom_type):
 
 
 if __name__ == "__main__":
+    import pymoire as pm
+
     parser = argparse.ArgumentParser(description="Script to process structures and moire patterns.")
     parser.add_argument("--structures", type=str, required=True, help="Path to the structures file.")
     parser.add_argument("--moire", type=str, required=True, help="Path to the moire pattern file.")
