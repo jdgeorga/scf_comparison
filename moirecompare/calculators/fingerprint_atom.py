@@ -1,7 +1,6 @@
 from ase.calculators.calculator import Calculator, all_changes
 from ase.atoms import Atoms
 import numpy as np
-import pymoire as pm
 from scipy.spatial import cKDTree
 
 def create_moire_grid(moire_atoms, n, padding_factor=0.0):
