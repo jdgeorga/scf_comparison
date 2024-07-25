@@ -1,0 +1,92 @@
+LAMMPS (27 Oct 2021)
+  using 64 OpenMP thread(s) per MPI task
+units metal
+atom_style atomic
+atom_modify map array sort 0 0
+boundary p p p
+box tilt large
+region cell prism    0 3.14592908 0 2.72445451 0 30.0     -1.57296454 0.0 0.0     units box
+create_box 3 cell
+Created triclinic box = (0.0000000 0.0000000 0.0000000) to (3.1459291 2.7244545 30.000000) with tilt (-1.5729645 0.0000000 0.0000000)
+  1 by 1 by 1 MPI processor grid
+echo none
+Created 3 atoms
+  using lattice units in triclinic box = (0.0000000 0.0000000 0.0000000) to (3.1459291 2.7244545 30.000000) with tilt (-1.5729645 0.0000000 0.0000000)
+  create_atoms CPU = 0.000 seconds
+Setting atom values ...
+  1 settings made for type
+Setting atom values ...
+  1 settings made for type
+Setting atom values ...
+  1 settings made for type
+pair_style hybrid/overlay sw lj/cut 10.0
+pair_coeff * * sw tmd.sw Mo S S
+pair_coeff * * lj/cut 0.0 3.0
+neighbor        2.0 bin
+neigh_modify every 1 delay 0 check yes
+mass 1 95.949999975317410871866741217673
+mass 2 32.059999991752746950623986776918
+mass 3 32.059999991752746950623986776918
+variable pxx equal pxx
+variable pyy equal pyy
+variable pzz equal pzz
+variable pxy equal pxy
+variable pxz equal pxz
+variable pyz equal pyz
+thermo_style custom pe pxx emol ecoul
+variable fx atom fx
+variable fy atom fy
+variable fz atom fz
+variable pe equal pe
+neigh_modify delay 0 every 1 check yes
+echo none
+run 0
+WARNING: No fixes with time integration, atoms won't move (src/verlet.cpp:60)
+Neighbor list info ...
+  update every 1 steps, delay 0 steps, check yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12
+  ghost atom cutoff = 12
+  binsize = 6, bins = 1 1 5
+  2 neighbor lists, perpetual/occasional/extra = 2 0 0
+  (1) pair sw, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+  (2) pair lj/cut, perpetual, half/full from (1)
+      attributes: half, newton on
+      pair build: halffull/newton
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 83.24 | 83.24 | 83.24 Mbytes
+PotEng Pxx E_mol E_coul 
+   -3.706566   -4531.0536            0            0 
+Loop time of 3.006e-06 on 64 procs for 0 steps with 3 atoms
+
+7751.2% CPU use with 1 MPI tasks x 64 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 3.006e-06  |            |       |100.00
+
+Nlocal:        3.00000 ave           3 max           3 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:        597.000 ave         597 max         597 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:        232.000 ave         232 max         232 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:      464.000 ave         464 max         464 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 464
+Ave neighs/atom = 154.66667
+Neighbor list builds = 0
+Dangerous builds = 0
+Total wall time: 0:00:00
