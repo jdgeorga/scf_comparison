@@ -82,7 +82,7 @@ class MoirePatternAnalyzer:
             self.configuration_space.append(combined_structure)
         return self.configuration_space
 
-    def stacking_configuration_space(self, layer_1, layer_2, N, soap_params, data_2D_mo_cond):
+    def stacking_configuration_space(self, layer_1, layer_2, N, soap_params, data_center_atom_cond):
         """Analyze the stacking configuration space of the relaxed structure."""
         # Step 1: Build configuration space
         self.configuration_space = self.build_configuration_space(layer_1, layer_2, N).copy()
@@ -106,8 +106,8 @@ class MoirePatternAnalyzer:
         desc = SOAP(**soap_params)
         config_soap = desc.create(configurations, centers=[[0, 0, 0]] * len(configurations))[:, 0]
         self.config_soap = config_soap
-        relaxed_soap = desc.create(flat_relaxed_structure, centers=flat_relaxed_structure.positions[data_2D_mo_cond])
-        original_soap = desc.create(flat_original_structure, centers=flat_original_structure.positions[data_2D_mo_cond])
+        relaxed_soap = desc.create(flat_relaxed_structure, centers=flat_relaxed_structure.positions[data_center_atom_cond])
+        original_soap = desc.create(flat_original_structure, centers=flat_original_structure.positions[data_center_atom_cond])
 
         interlayer_config_soap = []
         interlayer_relaxed_soap = []
@@ -149,6 +149,279 @@ class MoirePatternAnalyzer:
 
         mapping_original = map_to_configuration_space(interlayer_original_soap, interlayer_config_soap)
         mapping_relaxed = map_to_configuration_space(interlayer_relaxed_soap, interlayer_config_soap)
+
+        self.config_mapping_original = mapping_original
+        self.config_mapping_relaxed = mapping_relaxed
+
+        # Step 4: Build histogram
+        histogram_original = mapping_original.sum(axis=1).reshape(N, N)
+        histogram_relaxed = mapping_relaxed.sum(axis=1).reshape(N, N)
+
+        return histogram_original, histogram_relaxed
+    
+
+
+    def stacking_configuration_space_invariant(self, layer_1, layer_2, N, soap_params, data_center_atom_cond, offset = 0.1):
+        """Analyze the stacking configuration space of the relaxed structure."""
+        # Step 1: Build configuration space
+        self.configuration_space = self.build_configuration_space(layer_1, layer_2, N).copy()
+
+        configurations = []
+        for c in self.configuration_space:
+            cc = c.copy()
+            cc.positions[:, 2] = 0
+            cc.set_atomic_numbers(c.arrays['atom_types'] + 1)
+            configurations.append(cc)
+
+        flat_original_structure = self.original_structure.copy()
+        flat_original_structure.positions[:, 2] = 0
+        flat_original_structure.set_atomic_numbers(flat_original_structure.arrays['atom_types'] + 1)
+        flat_original_structure_dx = flat_original_structure.copy()
+        flat_original_structure_dx.positions[flat_original_structure_dx.arrays['atom_types'] >= 3] += np.array([offset,0.0,0.0])  
+        flat_original_structure_dy = flat_original_structure.copy()
+        flat_original_structure_dy.positions[flat_original_structure_dy.arrays['atom_types'] >= 3] += np.array([0.0,offset,0.0])
+
+        flat_relaxed_structure = self.relaxed_structure.copy()
+        flat_relaxed_structure.positions[:, 2] = 0
+        flat_relaxed_structure.set_atomic_numbers(flat_relaxed_structure.arrays['atom_types'] + 1)
+        flat_relaxed_structure_dx = flat_relaxed_structure.copy()
+        flat_relaxed_structure_dx.positions[flat_relaxed_structure_dx.arrays['atom_types'] >= 3] += np.array([offset,0.0,0.0])
+        flat_relaxed_structure_dy = flat_relaxed_structure.copy()
+        flat_relaxed_structure_dy.positions[flat_relaxed_structure_dy.arrays['atom_types'] >= 3] += np.array([0.0,offset,0.0])
+
+        configurations_dx = [c.copy() for c in configurations]
+        for c in configurations_dx:
+            c.positions[c.arrays['atom_types'] >= 3] += np.array([offset,0.0,0.0])
+
+        configurations_dy = [c.copy() for c in configurations]
+        for c in configurations_dy:
+            c.positions[c.arrays['atom_types'] >= 3] += np.array([0.0,offset,0.0])
+
+
+        # Step 2: Generate SOAP descriptors
+        desc = SOAP(**soap_params)
+        config_soap = desc.create(configurations, centers=[[0, 0, 0]] * len(configurations))[:, 0]
+        config_soap_dx = desc.create(configurations_dx, centers=[[0, 0, 0]] * len(configurations_dx))[:, 0]
+        config_soap_dy = desc.create(configurations_dy, centers=[[0, 0, 0]] * len(configurations_dy))[:, 0]
+        self.config_soap = config_soap
+
+        relaxed_soap = desc.create(flat_relaxed_structure, centers=flat_relaxed_structure.positions[data_center_atom_cond])
+        relaxed_soap_dx = desc.create(flat_relaxed_structure_dx, centers=flat_relaxed_structure_dx.positions[data_center_atom_cond])
+        relaxed_soap_dy = desc.create(flat_relaxed_structure_dy, centers=flat_relaxed_structure_dy.positions[data_center_atom_cond])
+
+        original_soap = desc.create(flat_original_structure, centers=flat_original_structure.positions[data_center_atom_cond])
+        original_soap_dx = desc.create(flat_original_structure_dx, centers=flat_original_structure_dx.positions[data_center_atom_cond])
+        original_soap_dy = desc.create(flat_original_structure_dy, centers=flat_original_structure_dy.positions[data_center_atom_cond])
+        
+        interlayer_config_soap = []
+        interlayer_config_soap_dx = []
+        interlayer_config_soap_dy = []
+        interlayer_relaxed_soap = []
+        interlayer_relaxed_soap_dx = []
+        interlayer_relaxed_soap_dy = []
+        interlayer_original_soap = []
+        interlayer_original_soap_dx = []
+        interlayer_original_soap_dy = []
+
+        for i in range(6):
+            for j in range(6):
+                if i < 3 and j >= 3:
+                    loc_range = desc.get_location([i + 1, j + 1])
+                    interlayer_config_soap.append(config_soap[:, loc_range])
+                    interlayer_config_soap_dx.append(config_soap_dx[:, loc_range])
+                    interlayer_config_soap_dy.append(config_soap_dy[:, loc_range])
+                    interlayer_relaxed_soap.append(relaxed_soap[:, loc_range])
+                    interlayer_relaxed_soap_dx.append(relaxed_soap_dx[:, loc_range])
+                    interlayer_relaxed_soap_dy.append(relaxed_soap_dy[:, loc_range])
+                    interlayer_original_soap.append(original_soap[:, loc_range])
+                    interlayer_original_soap_dx.append(original_soap_dx[:, loc_range])
+                    interlayer_original_soap_dy.append(original_soap_dy[:, loc_range])
+
+
+        interlayer_config_soap = np.hstack(interlayer_config_soap)
+        interlayer_config_soap_dx = np.hstack(interlayer_config_soap_dx)
+        interlayer_config_soap_dy = np.hstack(interlayer_config_soap_dy)
+        interlayer_relaxed_soap = np.hstack(interlayer_relaxed_soap)
+        interlayer_relaxed_soap_dx = np.hstack(interlayer_relaxed_soap_dx)
+        interlayer_relaxed_soap_dy = np.hstack(interlayer_relaxed_soap_dy)
+        interlayer_original_soap = np.hstack(interlayer_original_soap)
+        interlayer_original_soap_dx = np.hstack(interlayer_original_soap_dx)
+        interlayer_original_soap_dy = np.hstack(interlayer_original_soap_dy)
+
+        interlayer_config_soap_invariant = np.hstack([interlayer_config_soap,
+                                                      interlayer_config_soap_dx,
+                                                      interlayer_config_soap_dy])
+        interlayer_relaxed_soap_invariant = np.hstack([interlayer_relaxed_soap,
+                                                       interlayer_relaxed_soap_dx,
+                                                       interlayer_relaxed_soap_dy])
+        interlayer_original_soap_invariant = np.hstack([interlayer_original_soap,
+                                                        interlayer_original_soap_dx,
+                                                        interlayer_original_soap_dy])
+
+        # Normalize SOAP descriptors
+        interlayer_config_soap_invariant = normalize(interlayer_config_soap_invariant)
+        interlayer_relaxed_soap_invariant = normalize(interlayer_relaxed_soap_invariant)
+        interlayer_original_soap_invariant = normalize(interlayer_original_soap_invariant)
+
+        # Step 3: Map local substructures to configuration space using kernel distance
+        def map_to_configuration_space(real_soap, config_soap):
+            """
+            Map local substructures to configuration space using kernel distance.
+            args:
+                real_soap: SOAP descriptors of the real structure
+                config_soap: SOAP descriptors of the configuration space
+
+            returns:
+                mapping: Mapping of the local substructures to the configuration space
+                         shape (n_config^2, n_real)
+            """
+            kernel_distances = np.sqrt(2 - 2 * np.tensordot(config_soap, real_soap, axes=([1], [1])))
+            inverse_kernel_distances = 1 / (kernel_distances**2)
+            mapping = inverse_kernel_distances / inverse_kernel_distances.sum(axis=0)[None, :]
+            return mapping
+
+        mapping_original = map_to_configuration_space(interlayer_original_soap_invariant,
+                                                      interlayer_config_soap_invariant)
+        mapping_relaxed = map_to_configuration_space(interlayer_relaxed_soap_invariant,
+                                                     interlayer_config_soap_invariant)
+
+        self.config_mapping_original = mapping_original
+        self.config_mapping_relaxed = mapping_relaxed
+
+        # Step 4: Build histogram
+        histogram_original = mapping_original.sum(axis=1).reshape(N, N)
+        histogram_relaxed = mapping_relaxed.sum(axis=1).reshape(N, N)
+
+        return histogram_original, histogram_relaxed
+    
+    def stacking_configuration_space_invariant_scale(self, layer_1, layer_2, N, soap_params, data_center_atom_cond, offset = 0.1, scale_thresh = 1e-6):
+        """Analyze the stacking configuration space of the relaxed structure."""
+        # Step 1: Build configuration space
+        self.configuration_space = self.build_configuration_space(layer_1, layer_2, N).copy()
+
+        configurations = []
+        for c in self.configuration_space:
+            cc = c.copy()
+            cc.positions[:, 2] = 0
+            cc.set_atomic_numbers(c.arrays['atom_types'] + 1)
+            configurations.append(cc)
+
+        flat_original_structure = self.original_structure.copy()
+        flat_original_structure.positions[:, 2] = 0
+        flat_original_structure.set_atomic_numbers(flat_original_structure.arrays['atom_types'] + 1)
+        flat_original_structure_dx = flat_original_structure.copy()
+        flat_original_structure_dx.positions[flat_original_structure_dx.arrays['atom_types'] >= 3] += np.array([offset,0.0,0.0])  
+        flat_original_structure_dy = flat_original_structure.copy()
+        flat_original_structure_dy.positions[flat_original_structure_dy.arrays['atom_types'] >= 3] += np.array([0.0,offset,0.0])
+
+        flat_relaxed_structure = self.relaxed_structure.copy()
+        flat_relaxed_structure.positions[:, 2] = 0
+        flat_relaxed_structure.set_atomic_numbers(flat_relaxed_structure.arrays['atom_types'] + 1)
+        flat_relaxed_structure_dx = flat_relaxed_structure.copy()
+        flat_relaxed_structure_dx.positions[flat_relaxed_structure_dx.arrays['atom_types'] >= 3] += np.array([offset,0.0,0.0])
+        flat_relaxed_structure_dy = flat_relaxed_structure.copy()
+        flat_relaxed_structure_dy.positions[flat_relaxed_structure_dy.arrays['atom_types'] >= 3] += np.array([0.0,offset,0.0])
+
+        configurations_dx = [c.copy() for c in configurations]
+        for c in configurations_dx:
+            c.positions[c.arrays['atom_types'] >= 3] += np.array([offset,0.0,0.0])
+
+        configurations_dy = [c.copy() for c in configurations]
+        for c in configurations_dy:
+            c.positions[c.arrays['atom_types'] >= 3] += np.array([0.0,offset,0.0])
+
+
+        # Step 2: Generate SOAP descriptors
+        desc = SOAP(**soap_params)
+        config_soap = desc.create(configurations, centers=[[0, 0, 0]] * len(configurations))[:, 0]
+        config_soap_dx = desc.create(configurations_dx, centers=[[0, 0, 0]] * len(configurations_dx))[:, 0]
+        config_soap_dy = desc.create(configurations_dy, centers=[[0, 0, 0]] * len(configurations_dy))[:, 0]
+        self.config_soap = config_soap
+
+        relaxed_soap = desc.create(flat_relaxed_structure, centers=flat_relaxed_structure.positions[data_center_atom_cond])
+        relaxed_soap_dx = desc.create(flat_relaxed_structure_dx, centers=flat_relaxed_structure_dx.positions[data_center_atom_cond])
+        relaxed_soap_dy = desc.create(flat_relaxed_structure_dy, centers=flat_relaxed_structure_dy.positions[data_center_atom_cond])
+
+        original_soap = desc.create(flat_original_structure, centers=flat_original_structure.positions[data_center_atom_cond])
+        original_soap_dx = desc.create(flat_original_structure_dx, centers=flat_original_structure_dx.positions[data_center_atom_cond])
+        original_soap_dy = desc.create(flat_original_structure_dy, centers=flat_original_structure_dy.positions[data_center_atom_cond])
+        
+        interlayer_config_soap = []
+        interlayer_config_soap_dx = []
+        interlayer_config_soap_dy = []
+        interlayer_relaxed_soap = []
+        interlayer_relaxed_soap_dx = []
+        interlayer_relaxed_soap_dy = []
+        interlayer_original_soap = []
+        interlayer_original_soap_dx = []
+        interlayer_original_soap_dy = []
+
+        for i in range(6):
+            for j in range(6):
+                if i < 3 and j >= 3:
+                    loc_range = desc.get_location([i + 1, j + 1])
+                    interlayer_config_soap.append(config_soap[:, loc_range])
+                    interlayer_config_soap_dx.append(config_soap_dx[:, loc_range])
+                    interlayer_config_soap_dy.append(config_soap_dy[:, loc_range])
+                    interlayer_relaxed_soap.append(relaxed_soap[:, loc_range])
+                    interlayer_relaxed_soap_dx.append(relaxed_soap_dx[:, loc_range])
+                    interlayer_relaxed_soap_dy.append(relaxed_soap_dy[:, loc_range])
+                    interlayer_original_soap.append(original_soap[:, loc_range])
+                    interlayer_original_soap_dx.append(original_soap_dx[:, loc_range])
+                    interlayer_original_soap_dy.append(original_soap_dy[:, loc_range])
+
+
+        interlayer_config_soap = np.hstack(interlayer_config_soap)
+        interlayer_config_soap_dx = np.hstack(interlayer_config_soap_dx)
+        interlayer_config_soap_dy = np.hstack(interlayer_config_soap_dy)
+        interlayer_relaxed_soap = np.hstack(interlayer_relaxed_soap)
+        interlayer_relaxed_soap_dx = np.hstack(interlayer_relaxed_soap_dx)
+        interlayer_relaxed_soap_dy = np.hstack(interlayer_relaxed_soap_dy)
+        interlayer_original_soap = np.hstack(interlayer_original_soap)
+        interlayer_original_soap_dx = np.hstack(interlayer_original_soap_dx)
+        interlayer_original_soap_dy = np.hstack(interlayer_original_soap_dy)
+
+        interlayer_config_soap_invariant = np.hstack([interlayer_config_soap,
+                                                      interlayer_config_soap_dx,
+                                                      interlayer_config_soap_dy])
+        interlayer_relaxed_soap_invariant = np.hstack([interlayer_relaxed_soap,
+                                                       interlayer_relaxed_soap_dx,
+                                                       interlayer_relaxed_soap_dy])
+        interlayer_original_soap_invariant = np.hstack([interlayer_original_soap,
+                                                        interlayer_original_soap_dx,
+                                                        interlayer_original_soap_dy])
+
+        # Normalize SOAP descriptors
+        interlayer_config_soap_invariant = normalize(interlayer_config_soap_invariant)
+        interlayer_relaxed_soap_invariant = normalize(interlayer_relaxed_soap_invariant)
+        interlayer_original_soap_invariant = normalize(interlayer_original_soap_invariant)
+
+        # Step 3: Map local substructures to configuration space using kernel distance
+        def map_to_configuration_space(real_soap, config_soap,scale_thresh):
+            """
+            Map local substructures to configuration space using kernel distance.
+            args:
+                real_soap: SOAP descriptors of the real structure
+                config_soap: SOAP descriptors of the configuration space
+
+            returns:
+                mapping: Mapping of the local substructures to the configuration space
+                         shape (n_config^2, n_real)
+            """
+            kernel_distances = np.sqrt(2 - 2 * np.tensordot(config_soap, real_soap, axes=([1], [1])))
+            inverse_kernel_distances = 1 / (kernel_distances**2)
+            mapping = inverse_kernel_distances / inverse_kernel_distances.sum(axis=0)[None, :]
+            mapping[mapping < scale_thresh] = 0
+            mapping /= mapping.sum()
+
+            return mapping
+
+        mapping_original = map_to_configuration_space(interlayer_original_soap_invariant,
+                                                      interlayer_config_soap_invariant,
+                                                      scale_thresh)
+        mapping_relaxed = map_to_configuration_space(interlayer_relaxed_soap_invariant,
+                                                     interlayer_config_soap_invariant,
+                                                     scale_thresh)
 
         self.config_mapping_original = mapping_original
         self.config_mapping_relaxed = mapping_relaxed
