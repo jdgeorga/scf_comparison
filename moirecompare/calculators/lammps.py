@@ -248,7 +248,7 @@ class BilayerLammpsCalculator_old(LAMMPSlib):
             
             cmds = [
                 # LAMMPS commands go here.
-                "pair_style hybrid/overlay sw sw kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 lj/cut 10.0",
+                "pair_style hybrid/overlay sw/mod sw/mod kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 lj/cut 10.0",
                 f"pair_coeff * * sw 1 tmd.sw {self.chemical_symbols[0][0]} {self.chemical_symbols[0][1]} {self.chemical_symbols[0][2]} NULL NULL NULL",
                 f"pair_coeff * * sw 2 tmd.sw NULL NULL NULL {self.chemical_symbols[1][0]} {self.chemical_symbols[1][1]} {self.chemical_symbols[1][2]}",
                 f"pair_coeff 1 6 kolmogorov/crespi/z 1 WS.KC  {self.chemical_symbols[0][0]} NULL NULL NULL NULL  {self.chemical_symbols[1][2]}",
@@ -494,7 +494,7 @@ class BilayerLammpsCalculator(LAMMPSlib):
             
             cmds = [
                 # LAMMPS commands go here.
-                "pair_style hybrid/overlay sw sw kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 lj/cut 10.0",
+                "pair_style hybrid/overlay sw/mod sw/mod kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 lj/cut 10.0",
                 f"pair_coeff * * sw 1 tmd.sw {self.chemical_symbols[0][0]} {self.chemical_symbols[0][1]} {self.chemical_symbols[0][2]} NULL NULL NULL",
                 f"pair_coeff * * sw 2 tmd.sw NULL NULL NULL {self.chemical_symbols[1][0]} {self.chemical_symbols[1][1]} {self.chemical_symbols[1][2]}",
                 f"pair_coeff 1 6 kolmogorov/crespi/z 1 WS.KC  {self.chemical_symbols[0][0]} NULL NULL NULL NULL  {self.chemical_symbols[1][2]}",

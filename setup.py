@@ -13,6 +13,10 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="",
     packages=setuptools.find_packages(),
+    install_requires=[
+        nequip>=0.6.1,
+        scipy>=1.13
+    ]
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
