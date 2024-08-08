@@ -1,0 +1,5 @@
+3
+Lattice="3.16021 0.0 0.0 -1.5801049999999994 2.7368221412936213 0.0 0.0 0.0 6.147" Properties=species:S:1:pos:R:3:spacegroup_kinds:I:1:atom_types:I:1 spacegroup="P 63/m m c" unit_cell=conventional occupancy="_JSON {\"0\": {\"Mo\": 1.0}, \"1\": {\"S\": 1.0}}" thickness=3.1718520000000003 dz=2.9751480000000003 pbc="T T T"
+Mo       0.00000000       0.00000000       0.00000000        0        0
+S        1.58010500      -0.91190914      -1.58592600        1        2
+S        1.58010500      -0.91190914       1.58592600        1        1
