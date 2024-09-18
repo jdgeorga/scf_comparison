@@ -16,7 +16,7 @@ def periodic_distance_matrix(size, cell):
     x, y = np.meshgrid(np.arange(size), np.arange(size))
     fractional_coords = np.column_stack([x.ravel(), y.ravel()]) / size
     
-    crystal_coords = fractional_coords @ cell
+    cartesian_coords = fractional_coords @ cell
     
     dist_matrix = np.full((size * size, size * size), np.inf)
     
@@ -28,10 +28,10 @@ def periodic_distance_matrix(size, cell):
     ]
     
     for translation in translation_vectors:
-        translated_coords = crystal_coords + translation
+        translated_coords = cartesian_coords + translation
         for i in range(size * size):
             for j in range(size * size):
-                dist = np.linalg.norm(crystal_coords[i] - translated_coords[j])
+                dist = np.linalg.norm(cartesian_coords[i] - translated_coords[j])
                 if dist < dist_matrix[i, j]:
                     dist_matrix[i, j] = dist
     

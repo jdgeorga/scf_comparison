@@ -11,6 +11,15 @@ from ase.data import atomic_numbers, atomic_masses
 # from moirecompare.utils import rotate_to_x_axis
 import numpy as np
 
+import re
+
+def remove_trailing_numbers(input_string):
+    if isinstance(input_string, str):
+        return re.sub(r'\d+$', '', input_string)
+    else:
+        raise TypeError(f"Expected string or bytes-like object, but got {type(input_string)}")
+
+
 
 class MonolayerLammpsCalculator(LAMMPSlib):
     implemented_properties = ["energy", "energies", "forces"]
@@ -19,7 +28,7 @@ class MonolayerLammpsCalculator(LAMMPSlib):
 
         self.system_type = system_type
         self.layer_symbols = layer_symbols
-        self.original_masses = [atomic_masses[m] for m in [atomic_numbers[c] for c in self.layer_symbols]]
+        self.original_masses = [atomic_masses[m] for m in [atomic_numbers[remove_trailing_numbers(c)] for c in self.layer_symbols]]
         self.original_chemical_symbols = atoms.get_chemical_symbols()
         self.atom_types = atoms.arrays['atom_types']
         self.intra_potential = intra_potential
@@ -135,13 +144,14 @@ class MonolayerLammpsCalculator(LAMMPSlib):
 class InterlayerLammpsCalculator(LAMMPSlib):
     implemented_properties = ["energy", "energies", "forces", "free_energy"]
 
-    def __init__(self, atoms, layer_symbols, system_type='TMD'):
+    def __init__(self, atoms, layer_symbols, system_type='TMD', interlayer_potential='WS.KC'):
 
         self.system_type = system_type
         self.layer_symbols = layer_symbols
         self.original_chemical_symbols = atoms.get_chemical_symbols()
-        self.original_masses = [[atomic_masses[atomic_numbers[n]] for n in t] for t in self.layer_symbols]
+        self.original_masses = [[atomic_masses[atomic_numbers[remove_trailing_numbers(n)]] for n in t] for t in self.layer_symbols]
         self.atom_types = atoms.arrays['atom_types']
+        self.interlayer_potential = interlayer_potential
 
         # Get unique types and their indices in the sorted order
         unique_types, inverse = np.unique(self.atom_types, return_inverse=True)
@@ -161,14 +171,16 @@ class InterlayerLammpsCalculator(LAMMPSlib):
             cmds = [
                 # LAMMPS commands go here.
                 "pair_style hybrid/overlay kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 lj/cut 10.0",
-                f"pair_coeff 1 6 kolmogorov/crespi/z 1 WS.KC  {self.layer_symbols[0][0]} NULL NULL NULL NULL  {self.layer_symbols[1][2]}",
-                f"pair_coeff 2 4 kolmogorov/crespi/z 2 WS.KC NULL  {self.layer_symbols[0][1]} NULL {self.layer_symbols[1][0]} NULL NULL",
-                f"pair_coeff 2 6 kolmogorov/crespi/z 3 WS.KC NULL  {self.layer_symbols[0][1]} NULL NULL NULL  {self.layer_symbols[1][2]}",
-                f"pair_coeff 1 4 kolmogorov/crespi/z 4 WS.KC  {self.layer_symbols[0][0]} NULL NULL {self.layer_symbols[1][0]} NULL NULL",
+                f"pair_coeff 1 6 kolmogorov/crespi/z 1 {self.interlayer_potential}  {self.layer_symbols[0][0]} NULL NULL NULL NULL  {self.layer_symbols[1][2]}",
+                f"pair_coeff 2 4 kolmogorov/crespi/z 2 {self.interlayer_potential}  NULL  {self.layer_symbols[0][1]} NULL {self.layer_symbols[1][0]} NULL NULL",
+                f"pair_coeff 2 6 kolmogorov/crespi/z 3 {self.interlayer_potential}  NULL  {self.layer_symbols[0][1]} NULL NULL NULL  {self.layer_symbols[1][2]}",
+                f"pair_coeff 1 4 kolmogorov/crespi/z 4 {self.interlayer_potential}   {self.layer_symbols[0][0]} NULL NULL {self.layer_symbols[1][0]} NULL NULL",
                 "pair_coeff * * lj/cut 0.0 3.0",
                 "neighbor        2.0 bin",
                 "neigh_modify every 1 delay 0 check yes"]
             # Define fixed atom types and masses for the simulation.
+
+            # print(cmds)
 
             fixed_atom_types = {'H': 1, 'He': 2, 'Li': 3, 'Be': 4, 'B': 5, 'C': 6}
             fixed_atom_type_masses = {'H': self.original_masses[0][0],
@@ -222,6 +234,8 @@ class InterlayerLammpsCalculator(LAMMPSlib):
         if properties is None:
             properties = self.implemented_properties
         
+        Calculator.calculate(self, atoms, properties, system_changes)
+
         if self.system_type is None: 
             print("Specify type of bilayer. Options are 'TMD' or 'graphene'")
 
@@ -479,7 +493,7 @@ class BilayerLammpsCalculator(LAMMPSlib):
 
     def __init__(self, atoms, chemical_symbols, system_type='TMD',**kwargs):
 
-        Calculator.__init__(self, **kwargs)
+        # Calculator.__init__(self, **kwargs)
 
         self.system_type = system_type
         self.original_atom_types = atoms.get_chemical_symbols()
@@ -495,8 +509,8 @@ class BilayerLammpsCalculator(LAMMPSlib):
             cmds = [
                 # LAMMPS commands go here.
                 "pair_style hybrid/overlay sw/mod sw/mod kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 lj/cut 10.0",
-                f"pair_coeff * * sw 1 tmd.sw {self.chemical_symbols[0][0]} {self.chemical_symbols[0][1]} {self.chemical_symbols[0][2]} NULL NULL NULL",
-                f"pair_coeff * * sw 2 tmd.sw NULL NULL NULL {self.chemical_symbols[1][0]} {self.chemical_symbols[1][1]} {self.chemical_symbols[1][2]}",
+                f"pair_coeff * * sw/mod 1 tmd.sw {self.chemical_symbols[0][0]} {self.chemical_symbols[0][1]} {self.chemical_symbols[0][2]} NULL NULL NULL",
+                f"pair_coeff * * sw/mod 2 tmd.sw NULL NULL NULL {self.chemical_symbols[1][0]} {self.chemical_symbols[1][1]} {self.chemical_symbols[1][2]}",
                 f"pair_coeff 1 6 kolmogorov/crespi/z 1 WS.KC  {self.chemical_symbols[0][0]} NULL NULL NULL NULL  {self.chemical_symbols[1][2]}",
                 f"pair_coeff 2 4 kolmogorov/crespi/z 2 WS.KC NULL  {self.chemical_symbols[0][1]} NULL {self.chemical_symbols[1][0]} NULL NULL",
                 f"pair_coeff 2 6 kolmogorov/crespi/z 3 WS.KC NULL  {self.chemical_symbols[0][1]} NULL NULL NULL  {self.chemical_symbols[1][2]}",
@@ -505,6 +519,8 @@ class BilayerLammpsCalculator(LAMMPSlib):
                 "neighbor        2.0 bin",
                 "neigh_modify every 1 delay 0 check yes"]
             # Define fixed atom types and masses for the simulation.
+
+            # print(cmds)
 
             fixed_atom_types = {'H': 1, 'He': 2, 'Li': 3, 'Be': 4, 'B': 5, 'C': 6}
             fixed_atom_type_masses = {'H': self.original_masses[0][0],
@@ -566,13 +582,15 @@ class BilayerLammpsCalculator(LAMMPSlib):
         if self.system_type is None: 
             print("Specify type of bilayer. Options are 'TMD' or 'BP'")
 
-        Calculator.calculate(self, atoms, properties, system_changes)
+        # Calculator.calculate(self, atoms, pro perties, system_changes)
 
         if self.system_type == 'TMD':
             atoms.numbers = atoms.arrays["atom_types"] + 1
             self.propagate(atoms, properties, system_changes, 0)
             self.calculate_intralayer(atoms)
+            print(self.results['L1_energy'])
             self.calculate_interlayer(atoms)
+    
             atoms.set_chemical_symbols(self.original_atom_types)
 
         if self.system_type == 'BP':
@@ -632,8 +650,7 @@ class BilayerLammpsCalculator(LAMMPSlib):
     def calculate_interlayer(self, atoms):
         tmp_atoms = atoms.copy()[:]
         tmp_atoms.numbers = tmp_atoms.arrays["atom_types"] + 1
-
-        lammps_calc = InterlayerLammpsCalculator(atoms,
+        lammps_calc = InterlayerLammpsCalculator(tmp_atoms,
                                                  layer_symbols=self.chemical_symbols,
                                                  system_type=self.system_type)   
         tmp_atoms.calc = lammps_calc

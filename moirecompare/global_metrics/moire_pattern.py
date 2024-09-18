@@ -130,6 +130,8 @@ class MoirePatternAnalyzer:
         interlayer_relaxed_soap = normalize(interlayer_relaxed_soap)
         interlayer_original_soap = normalize(interlayer_original_soap)
 
+        self.interlayer_config_soap = interlayer_config_soap
+
         # Step 3: Map local substructures to configuration space using kernel distance
         def map_to_configuration_space(real_soap, config_soap):
             """

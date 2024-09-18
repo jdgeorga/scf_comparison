@@ -220,7 +220,8 @@ class NLayerCalculator(Calculator):
             calc = self.inter_calc_list[layer_1]
             atoms_L.calc = calc
             calc.calculate(atoms_L)
-
+            # print(f"Unrelaxed from NLAYER NLAYER: Total_energy {atoms_L.calc.results['energy']:.3f} eV")
+            
             # Update the results with energies and forces computed between these layers
             lower_layers_num_atoms = sum([len(layer_atoms) for layer_atoms in self.atoms_layer_list[:layer_1]])
             layer_atom_indices = [lower_layers_num_atoms, lower_layers_num_atoms + len(self.atoms_layer_list[layer_1]) + len(self.atoms_layer_list[layer_2])]
@@ -244,3 +245,4 @@ class NLayerCalculator(Calculator):
             
             # Add the selected atoms to the layer list
             self.atoms_layer_list.append(atoms_L)
+            
